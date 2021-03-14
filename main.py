@@ -29,6 +29,17 @@ def parse_args(args):
 
 
 def train(sumoCmd):
+    # 1. Network 생성
+    # grid=Grid(configuration)
+    # 2. sumocfg 실행
+
+    # 3. env생성
+    # 4. initial state 생성
+    # 5. agent 생성
+    # ----loop-----
+    # agent.action
+    # next_state,reward = env.step(action) GYM style
+    # logger
     traci.start(sumoCmd)
     while step < 5000:
         traci.simulationStep()
