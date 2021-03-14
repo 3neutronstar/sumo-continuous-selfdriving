@@ -1,0 +1,26 @@
+main
+- run하는 부분
+- traci.start
+- argparser
+- simulation(연습 자료 주고 받고, 일반적인 상황에서의 응급차 주행 시뮬레이션), training (RL 학습), test(RL 결과확인)
+- seed 고정
+- hyperparameter 저장 기능 추가 (거의 필수)
+
+Agent (RL)
+- DQN, DDPG, etc.
+- 행동이 여러개 (replay가능한 모델 저장(강화학습 친구 저장?))
+
+Env(RL, traci 받는 것)
+- State return: 정보들을 모두 받는 곳
+- GYM style
+
+Network(SUMO)
+- generating road structure
+- vehicle
+- traffic light
+- 십자-> 늘려나가는 형식: xml 파일 클래스, ->상속: 원하는 도로구조 생성(클래스)
+
+/////////////////////////////////////
+Communication (Agent 연결)
+- edgecloud
+- 주고 받고
