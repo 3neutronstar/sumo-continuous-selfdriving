@@ -1,70 +1,103 @@
-import argparse
-import json
 import os
 import sys
-import time
-import torch
-import random
-import numpy as np
+import argparse
 import traci
-import traci.constants as tc
+from configs import EXP_CONFIGS
 from sumolib import checkBinary
+
+# 인자를 가져오는 함수
 
 
 def parse_args(args):
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="choose the mode",
-        epilog="python run.py mode")
+    parser = argparse.ArgumentParser()
 
-    # required input parameters
-    parser.add_argument(
-        'mode', type=str,
-        help='train or test, simulate is the old version to train')
+    # 기본 옵션
+    parser.add_argument('mode', type=str, choices=[
+                        'train', 'simulate', 'test'])
 
-    # optional input parameters
-    parser.add_argument(
-        '--disp', type=bool, default=False,
-        help='show the process while in training')
+    # 추가 옵션
+    parser.add_argument('--network', type=str)
+    parser.add_argument('--display', type=bool, default=False)
+    parser.add_argument('--algorithm', type=str, default='algorithm')
+    return parser.parse_known_args(args)[0]
 
 
-def train(sumoCmd):
-    # 1. Network 생성
-    # grid=Grid(configuration)
-    # 2. sumocfg 실행
+def test(flags, configs, sumoConfig):
+    sumoCmd = [configs['gui'], "-c", sumoConfig]
+    # 알고리즘 평가
 
-    # 3. env생성
-    # 4. initial state 생성
-    # 5. agent 생성
-    # ----loop-----
-    # agent.action
-    # next_state,reward = env.step(action) GYM style
-    # logger
+
+def train(flags, configs, sumoConfig):
+    sumoCmd = [configs['gui'], "-c", sumoConfig]
+    # config 값 세팅하고, 지정된 알고리즘으로 트레이닝
     traci.start(sumoCmd)
-    while step < 5000:
+    step = 0
+    while step < configs['max_step']:
         traci.simulationStep()
+        step += 1
+
+    traci.close()
+
+
+def simulate(flags, configs, sumoConfig):
+    sumoCmd = [configs['gui'], "-c", sumoConfig]
+    traci.start(sumoCmd)
+    traci.simulation.subscribe()
+    step = 0
+    while step < configs['max_step']:
+        traci.simulationStep()
+        step += 1
 
     traci.close()
 
 
 def main(args):
     flags = parse_args(args)
-    # check gui option
-    if flags.disp == True:
+
+    # config 파일에서 데이터 가져오기
+    configs = EXP_CONFIGS
+    configs['mode'] = flags.mode
+    configs['current_path'] = os.path.dirname(os.path.abspath(__file__))
+
+    # 네트워크 호출
+    configs['network'] = "네트워크 이름"
+
+    # 어떤 네트워크인지 체크
+    if configs['network'] == "네트워크 이름":
+        configs['NET_CONFIGS']["gird_num"] = 3
+        # 추가..
+        # #net 생성
+
+    # enviornment 체크
+    if 'SUMO_HOME' in os.environ:
+        tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
+        sys.path.append(tools)
+    else:
+        sys.exit("please declare environment variable 'SUMO_HOME'")
+
+    # gui 확인
+    if flags.display == True:
         sumoBinary = checkBinary('sumo-gui')
     else:
         sumoBinary = checkBinary('sumo')
+    configs['gui'] = sumoBinary
 
-    # sumocfg file 위치
-    sumoConfig = os.path.join(
-        configs['current_path'], 'training_data', time_data, 'net_data', configs['file_name']+'_train.sumocfg')
+    # 모드 결정 및 실행
+    if configs['mode'] == 'train':
+        sumoConfig = os.path.join(
+            configs['current_path'], 'training_data', '_train.sumocfg')  # 중간 파일 경로 추가
+        train(flags, configs, sumoConfig)
 
-    sumoCmd = [sumoBinary, "-c", sumoConfig, '--start']
+    elif configs['mode'] == 'test':
+        sumoConfig = os.path.join(
+            configs['current_path'], '_test.sumocfg')  # 중간 파일 경로 추가
+        test(flags, configs, sumoConfig)
 
-    if flags.mode == 'train':
-        train(sumoCmd)
+    else:  # simulate
+        sumoConfig = os.path.join(
+            configs['current_path'], '_simulate.sumocfg')  # 중간 파일 경로 추가
+        simulate(flags, configs, sumoConfig)
 
 
 if __name__ == '__main__':
-    flags = parse_args(args)
     main(sys.argv[1:])
