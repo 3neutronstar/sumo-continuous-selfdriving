@@ -75,7 +75,7 @@ def main(args):
     configs['network'] = flags.network.lower()
 
     # 어떤 네트워크인지 체크
-    if configs['network'] == "네트워크 이름":
+    if configs['network'] == "네트워크 이름을 적어주세요":
         configs['NET_CONFIGS']["grid_num"] = 3
         # 추가..
         # #net 생성
