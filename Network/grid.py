@@ -4,13 +4,15 @@ import math
 import torch
 
 NET_CONFIG = {
-
+    'numLanes': 3,
+    'laneLength': 300,
 }
 
 
 class GridNetwork(BaseNetwork):
     def __init__(self, configs):
-        self.configs = configs
+        self.net_configs = configs['NET_CONFIGS']
+        self.exp_configs = configs['EXP_CONFIGS']
         super().__init__(self.configs)
 
     # define nodes
@@ -65,18 +67,18 @@ class GridNetwork(BaseNetwork):
                 'from': 'n_C',
                 'id': 'C_to_{}'.format(_),
                 'to': 'n_{}'.format(_),
-                'numLanes': self.lane_num
+                'numLanes': self.numLanes
             }
             edges.append(edge_info)
             edge_info = {
                 'from': 'n_{}'.format(_),
                 'id': '{}_to_C'.format(_),
                 'to': 'n_C',
-                'numLanes': self.lane_num
+                'numLanes': self.numLanes
             }
             edges.append(edge_info)
         self.edges = edges
-        self.configs['edge_info'] = edges
+        self.net_configs['edge_info'] = edges
         return edges
 
     # define traffic flow
@@ -91,24 +93,24 @@ class GridNetwork(BaseNetwork):
                     destEdgeID = 'n_'+direction_list[3-i]
 
                     if destEdgeID[-1] == direction_list[1] or destEdgeID[-1] == direction_list[2]:
-                        self.configs['vehsPerHour'] = '900'  # 수직 통행량 900
+                        vehsPerHours = '900'  # 수직 통행량 900
                     else:
-                        self.configs['vehsPerHour'] = '1200'  # 수평 통행량 2000
+                        vehsPerHours = '1200'  # 수평 통행량 2000
 
                     flows.append({
                         'from': edge['id'],
                         'to': destEdgeID,
                         'id': edge['from'],
-                        'begin': str(self.configs['flow_start']),
-                        'end': str(self.configs['flow_end']),
-                        'vehsPerHour': self.configs['vehsPerHour'],
+                        'begin': str(self.exp_configs['flow_start']),
+                        'end': str(self.exp_configs['flow_end']),
+                        'vehsPerHour': vehsPerHours,
                         'reroute': 'false',
                         'via': edge['id'] + ' ' + destEdgeID,
                         'departPos': "base",
                         'departLane': 'best',
                     })
         self.flows = flows
-        self.configs['vehicle_info'] = flows
+        self.net_configs['vehicle_info'] = flows
         return flows
 
     # define connections
@@ -121,37 +123,37 @@ class GridNetwork(BaseNetwork):
     # define traffic light
     def specify_traffic_light(self):
         traffic_lights = []
-        lane_num = self.configs['lane_num']
+        numLanes = self.net_configs['numLanes']
         g = 'G'
         r = 'r'
         phase_set = [
             {'duration': '37',  # 1
                 'state': 'r{2}{1}gr{2}{3}rr{2}{1}gr{2}{3}r'.format(  # 위좌아래좌
-                    g*lane_num, g, r*lane_num, r),
+                    g*numLanes, g, r*numLanes, r),
              },
             {'duration': '3',
-                'state': 'y'*(12+4*lane_num),
+                'state': 'y'*(12+4*numLanes),
              },
             {'duration': '37',  # 2
                 'state': 'G{0}{3}rr{2}{3}rG{0}{3}rr{2}{3}r'.format(  # 위직아래직
-                    g*lane_num, g, r*lane_num, r),  # current
+                    g*numLanes, g, r*numLanes, r),  # current
              },
             {'duration': '3',
-                'state': 'y'*(12+4*lane_num),
+                'state': 'y'*(12+4*numLanes),
              },
             {'duration': '37',  # 1
                 'state': 'r{2}{3}rr{2}{1}gr{2}{3}rr{2}{1}g'.format(  # 좌좌우좌
-                    g*lane_num, g, r*lane_num, r),
+                    g*numLanes, g, r*numLanes, r),
              },
             {'duration': '3',
-                'state': 'y'*(12+4*lane_num),
+                'state': 'y'*(12+4*numLanes),
              },
             {'duration': '37',  # 1
                 'state': 'r{2}{3}rG{0}{3}rr{2}{3}rG{0}{3}g'.format(  # 좌직우직
-                    g*lane_num, g, r*lane_num, r),  # current
+                    g*numLanes, g, r*numLanes, r),  # current
              },
             {'duration': '3',
-                'state': 'y'*(12+4*lane_num),
+                'state': 'y'*(12+4*numLanes),
              },
         ]
 
@@ -173,7 +175,9 @@ class GridNetwork(BaseNetwork):
 
 
 if __name__ == "__main__":
-    configs = EXP_CONFIGS
-    configs['file_name'] = 'cross_road'
+    from configs import EXP_CONFIGS
+    configs = dict()
+    configs['EXP_CONFIGS'] = EXP_CONFIGS
+    configs['NET_CONFIGS'] = NET_CONFIG
     a = GridNetwork(configs)
     a.generate_cfg(True)

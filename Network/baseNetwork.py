@@ -5,6 +5,20 @@ from lxml import etree as ET
 import os
 E = ET.Element
 
+# network=NETWORK[flags.network]
+
+# network=MainNetwork(configs).network
+# class MainNetwork():
+#     def __init__(flags.network):
+#         if flags.network =='net1':
+#             from adfjalsf import network1
+#             self.network=network1
+#         if flags.network =='net1':
+#         if flags.network =='net1':
+#         if flags.network =='net1':
+#         if flags.network =='net1':
+#         if flags.network =='net1':
+
 
 def indent(elem, level=0):
     i = "\n  " + level*"  "
