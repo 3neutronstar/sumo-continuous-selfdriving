@@ -1,21 +1,25 @@
-from gen_net import Network
+from Network.baseNetwork import BaseNetwork
 from configs import EXP_CONFIGS
 import math
 import torch
 
+NET_CONFIG = {
 
-class GridNetwork(Network):
+}
+
+
+class GridNetwork(BaseNetwork):
     def __init__(self, configs):
         self.configs = configs
         super().__init__(self.configs)
 
-    #define nodes    
+    # define nodes
     def specify_node(self):
         nodes = list()
 
-        #define center_node
+        # define center_node
         center = 0
-        node_info = dict()        
+        node_info = dict()
         node_information = [{
             'id': 'n_C',
             'type': 'traffic_light',
@@ -43,18 +47,17 @@ class GridNetwork(Network):
             'x': str('%.1f' % -(self.configs['laneLength'])),
             'y': str('%.1f' % center)
         }]
-        
+
         for _, node_info in enumerate(node_information):
-                nodes.append(node_info)
+            nodes.append(node_info)
         self.configs['node_info'] = nodes
         self.nodes = nodes
         return nodes
 
-    #define edges      
+    # define edges
     def specify_edge(self):
         edges = list()
         direction_list = ['U', 'D', 'R', 'L']
-
 
         for _ in (direction_list):
             edge_info = dict()
@@ -64,7 +67,7 @@ class GridNetwork(Network):
                 'to': 'n_{}'.format(_),
                 'numLanes': self.lane_num
             }
-            edges.append(edge_info)           
+            edges.append(edge_info)
             edge_info = {
                 'from': 'n_{}'.format(_),
                 'id': '{}_to_C'.format(_),
@@ -76,46 +79,46 @@ class GridNetwork(Network):
         self.configs['edge_info'] = edges
         return edges
 
-    #define traffic flow
+    # define traffic flow
     def specify_flow(self):
         flows = list()
         destEdgeID = ''
         direction_list = ['L', 'U', 'D', 'R']
-        
-        for _, edge in enumerate(self.edges): #search all edges
+
+        for _, edge in enumerate(self.edges):  # search all edges
             for i, _ in enumerate(direction_list):
-                if direction_list[i] in edge['from']: #find only outNodes 
+                if direction_list[i] in edge['from']:  # find only outNodes
                     destEdgeID = 'n_'+direction_list[3-i]
-                    
+
                     if destEdgeID[-1] == direction_list[1] or destEdgeID[-1] == direction_list[2]:
-                        self.configs['vehsPerHour']='900' #수직 통행량 900
+                        self.configs['vehsPerHour'] = '900'  # 수직 통행량 900
                     else:
-                        self.configs['vehsPerHour']='1200' #수평 통행량 2000
-                    
+                        self.configs['vehsPerHour'] = '1200'  # 수평 통행량 2000
+
                     flows.append({
-                    'from': edge['id'],
-                    'to': destEdgeID,
-                    'id': edge['from'],
-                    'begin': str(self.configs['flow_start']),
-                    'end': str(self.configs['flow_end']),
-                    'vehsPerHour':self.configs['vehsPerHour'],
-                    'reroute': 'false',
-                    'via': edge['id']+ ' ' +destEdgeID,
-                    'departPos': "base",
-                    'departLane': 'best',
-                })
+                        'from': edge['id'],
+                        'to': destEdgeID,
+                        'id': edge['from'],
+                        'begin': str(self.configs['flow_start']),
+                        'end': str(self.configs['flow_end']),
+                        'vehsPerHour': self.configs['vehsPerHour'],
+                        'reroute': 'false',
+                        'via': edge['id'] + ' ' + destEdgeID,
+                        'departPos': "base",
+                        'departLane': 'best',
+                    })
         self.flows = flows
         self.configs['vehicle_info'] = flows
         return flows
 
-    #define connections
+    # define connections
     def specify_connection(self):
         connections = list()
 
         self.connections = connections
         return connections
-    
-    #define traffic light
+
+    # define traffic light
     def specify_traffic_light(self):
         traffic_lights = []
         lane_num = self.configs['lane_num']
@@ -125,31 +128,31 @@ class GridNetwork(Network):
             {'duration': '37',  # 1
                 'state': 'r{2}{1}gr{2}{3}rr{2}{1}gr{2}{3}r'.format(  # 위좌아래좌
                     g*lane_num, g, r*lane_num, r),
-                },
+             },
             {'duration': '3',
                 'state': 'y'*(12+4*lane_num),
-                },
+             },
             {'duration': '37',  # 2
                 'state': 'G{0}{3}rr{2}{3}rG{0}{3}rr{2}{3}r'.format(  # 위직아래직
                     g*lane_num, g, r*lane_num, r),  # current
-                },
+             },
             {'duration': '3',
                 'state': 'y'*(12+4*lane_num),
-                },
+             },
             {'duration': '37',  # 1
                 'state': 'r{2}{3}rr{2}{1}gr{2}{3}rr{2}{1}g'.format(  # 좌좌우좌
                     g*lane_num, g, r*lane_num, r),
-                },
+             },
             {'duration': '3',
                 'state': 'y'*(12+4*lane_num),
-                },
+             },
             {'duration': '37',  # 1
                 'state': 'r{2}{3}rG{0}{3}rr{2}{3}rG{0}{3}g'.format(  # 좌직우직
                     g*lane_num, g, r*lane_num, r),  # current
-                },
+             },
             {'duration': '3',
                 'state': 'y'*(12+4*lane_num),
-                },
+             },
         ]
 
         traffic_lights.append({
@@ -167,6 +170,7 @@ class GridNetwork(Network):
         self._generate_add_xml()
         self._generate_net_xml()
         super().generate_cfg(route_exist, mode)
+
 
 if __name__ == "__main__":
     configs = EXP_CONFIGS
