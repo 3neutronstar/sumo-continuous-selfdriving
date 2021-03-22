@@ -42,9 +42,19 @@ def train(flags, configs, sumoBinary, sumoConfig):
     # config 값 세팅하고, 지정된 알고리즘으로 트레이닝
     traci.start(sumoCmd)
     step = 0
+    # Agent
+    agent = ALG(configs)
+    # Env
+    env = ENV(configs)
+    # state init
+    state = env.init()
+
     while step < configs['max_step']:
+        agent.get_action(state)
         traci.simulationStep()  # agent.step안에 들어가야함
+        next_state, reward = env.step(action)
         step += 1
+        agent.update()
 
     traci.close()
 
