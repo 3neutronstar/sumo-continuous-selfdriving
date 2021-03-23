@@ -1,23 +1,19 @@
-from configs import EXP_CONFIGS
-import xml.etree.cElementTree as ET
+# import xml.etree.cElementTree as ET
 from xml.etree.ElementTree import dump
-from xml import etree as ET
+from lxml import etree as ET
 import os
 E = ET.Element
 
-# network=NETWORK[flags.network]
 
-# network=MainNetwork(configs).network
-# class MainNetwork():
-#     def __init__(flags.network):
-#         if flags.network =='net1':
-#             from adfjalsf import network1
-#             self.network=network1
-#         if flags.network =='net1':
-#         if flags.network =='net1':
-#         if flags.network =='net1':
-#         if flags.network =='net1':
-#         if flags.network =='net1':
+class mainNetwork():
+    def __init__(self, file_path, configs):
+        if configs['network'] == "cross":  # cross road 생성코드를 'net_1'로 수정할것
+            from Network.cross import CrossNetwork
+            self.network = CrossNetwork(file_path, configs['network'], configs)
+            print(configs)  # 여기서 netconfigs도 담겨 나오면 쓸모없는일임
+        elif configs['network'] == "grid":  # grid.py를 'net_2.py'로 수정할것
+            from Network.grid import GridNetwork
+            self.network = GridNetwork(file_path, configs['network'], configs)
 
 
 def indent(elem, level=0):
@@ -37,27 +33,25 @@ def indent(elem, level=0):
 
 
 class BaseNetwork():
-    def __init__(self, configs):
-        self.configs = configs
-        self.sim_start = self.configs['sim_start']
-        self.max_steps = self.configs['max_steps']
-        self.current_path = os.path.dirname(os.path.abspath(__file__))
-        gen_training_data_path = os.path.join(
-            self.current_path, 'training_data')
-        if os.path.exists(gen_training_data_path) == False:
-            os.mkdir(gen_training_data_path)
-
-        self.file_name = self.configs['file_name']
+    def __init__(self, file_path, file_name, configs):
+        self.exp_configs = configs['EXP_CONFIGS']
+        self.net_configs = configs['NET_CONFIGS']
+        self.sim_start = 0
+        self.max_steps = self.exp_configs['max_steps']
+        self.current_path = file_path
+        self.file_name = file_name
         self.current_Env_path = os.path.join(
             self.current_path, 'Net_data')
         if os.path.exists(self.current_Env_path) == False:
             os.mkdir(self.current_Env_path)
+        if os.path.exists(self.current_Env_path) == False:
+            os.mkdir(self.current_Env_path)
 
-        self.num_cars = str(self.configs['NET_CONFIGS']['num_cars'])
-        self.lane_num = str(self.configs['NET_CONFIGS']['lane_num'])
-        self.flow_start = str(self.configs['EXP_CONFIGS']['flow_start'])
-        self.flow_end = str(self.configs['EXP_CONFIGS']['flow_end'])
-        self.laneLength = self.configs['NET_CONFIGS']['laneLength']
+        self.num_cars = str(self.net_configs['num_cars'])
+        self.lane_num = str(self.net_configs['numLanes'])
+        self.flow_start = str(self.net_configs['flow_start'])
+        self.flow_end = str(self.net_configs['flow_end'])
+        self.laneLength = self.net_configs['laneLength']
         self.nodes = list()
         self.flows = list()
         self.vehicles = list()
@@ -179,11 +173,11 @@ class BaseNetwork():
         self.traffic_light = traffic_light_set
         data_additional = ET.Element('additional')
         # edgeData와 landData파일의 생성위치는 data
-        data_additional.append(E('edgeData', attrib={'id': 'edgeData_00', 'file': '{}_edge.xml'.format(self.current_path+'/data/'+self.file_name), 'begin': '0', 'end': str(
-            self.configs['max_steps']), 'freq': '1000'}))
+        data_additional.append(E('edgeData', attrib={'id': 'edgeData_00', 'file': '{}_edge.xml'.format(self.current_path+'/Net_data/'+self.file_name), 'begin': '0', 'end': str(
+            self.exp_configs['max_steps']), 'freq': '1000'}))
         indent(data_additional, 1)
-        data_additional.append(E('laneData', attrib={'id': 'laneData_00', 'file': '{}_lane.xml'.format(self.current_path+'/data/'+self.file_name), 'begin': '0', 'end': str(
-            self.configs['max_steps']), 'freq': '1000'}))
+        data_additional.append(E('laneData', attrib={'id': 'laneData_00', 'file': '{}_lane.xml'.format(self.current_path+'/Net_data/'+self.file_name), 'begin': '0', 'end': str(
+            self.exp_configs['max_steps']), 'freq': '1000'}))
         indent(data_additional, 1)
         dump(data_additional)
         tree = ET.ElementTree(data_additional)
@@ -191,7 +185,7 @@ class BaseNetwork():
                    pretty_print=True, encoding='UTF-8', xml_declaration=True)
 
         tl_additional = ET.Element('additional')
-        if len(self.traffic_light) != 0 or self.configs['mode'] == 'simulate':
+        if len(self.traffic_light) != 0 or self.exp_configs['mode'] == 'simulate':
             for _, tl in enumerate(traffic_light_set):
                 phase_set = tl.pop('phase')
                 tlLogic = ET.SubElement(tl_additional, 'tlLogic', attrib=tl)
@@ -215,7 +209,6 @@ class BaseNetwork():
             E('net-file', attrib={'value': os.path.join(self.current_Env_path, self.file_name+'.net.xml')}))
         indent(sumocfg)
         if route_exist == True:
-            # if self.configs['network'] == 'grid':  # grid에서만 생성
             self._generate_rou_xml()
             if os.path.exists(os.path.join(self.current_Env_path, self.file_name+'.rou.xml')):
                 inputXML.append(
@@ -257,6 +250,7 @@ class BaseNetwork():
 
 
 if __name__ == '__main__':
-    network = BaseNetwork(EXP_CONFIGS)
+    from configs import DEFAULT_CONFIGS
+    network = BaseNetwork(DEFAULT_CONFIGS)
     network.generate_all_xml()
     network.generate_cfg(True)

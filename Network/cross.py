@@ -1,21 +1,23 @@
 from Network.baseNetwork import BaseNetwork
-from configs import EXP_CONFIGS
 import math
 import torch
 
-NET_CONFIG = {
+NET_CONFIGS = {
     'numLanes': 3,
     'laneLength': 300,
     'flow_start': 0,
     'flow_end': 3600,
+    'num_cars': 1800,
 }
 
 
-class GridNetwork(BaseNetwork):
-    def __init__(self, configs):
-        self.net_configs = configs['NET_CONFIGS']
+class CrossNetwork(BaseNetwork):
+    def __init__(self, file_path, file_name, configs):
+        self.configs = configs
+        self.net_configs = NET_CONFIGS
         self.exp_configs = configs['EXP_CONFIGS']
-        super().__init__(self.configs)
+        self.configs['NET_CONFIGS'] = NET_CONFIGS
+        super().__init__(file_path, file_name, self.configs)
 
     # define nodes
     def specify_node(self):
@@ -69,14 +71,14 @@ class GridNetwork(BaseNetwork):
                 'from': 'n_C',
                 'id': 'C_to_{}'.format(_),
                 'to': 'n_{}'.format(_),
-                'numLanes': self.numLanes
+                'numLanes': str(self.net_configs['numLanes'])
             }
             edges.append(edge_info)
             edge_info = {
                 'from': 'n_{}'.format(_),
                 'id': '{}_to_C'.format(_),
                 'to': 'n_C',
-                'numLanes': self.numLanes
+                'numLanes': str(self.net_configs['numLanes'])
             }
             edges.append(edge_info)
         self.edges = edges
@@ -92,9 +94,9 @@ class GridNetwork(BaseNetwork):
         for _, edge in enumerate(self.edges):  # search all edges
             for i, _ in enumerate(direction_list):
                 if direction_list[i] in edge['from']:  # find only outNodes
-                    destEdgeID = 'n_'+direction_list[3-i]
+                    destEdgeID = 'C_to_'+direction_list[3-i]
 
-                    if destEdgeID[-1] == direction_list[1] or;;/ destEdgeID[-1] == direction_list[2]:
+                    if destEdgeID[-1] == direction_list[1] or destEdgeID[-1] == direction_list[2]:
                         vehsPerHours = '900'  # 수직 통행량 900
                     else:
                         vehsPerHours = '1200'  # 수평 통행량 2000
@@ -180,6 +182,6 @@ if __name__ == "__main__":
     from configs import EXP_CONFIGS
     configs = dict()
     configs['EXP_CONFIGS'] = EXP_CONFIGS
-    configs['NET_CONFIGS'] = NET_CONFIG
+    configs['NET_CONFIGS'] = NET_CONFIGS
     a = GridNetwork(configs)
     a.generate_cfg(True)
