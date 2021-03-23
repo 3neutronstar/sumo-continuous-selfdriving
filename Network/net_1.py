@@ -6,6 +6,8 @@ import torch
 NET_CONFIG = {
     'numLanes': 3,
     'laneLength': 300,
+    'flow_start': 0,
+    'flow_end': 3600,
 }
 
 
