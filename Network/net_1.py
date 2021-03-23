@@ -34,21 +34,21 @@ class GridNetwork(BaseNetwork):
             {
             'id': 'n_U',
             'x': str('%.1f' % center),
-            'y': str('%.1f' % (self.configs['laneLength']))
+            'y': str('%.1f' % (self.net_configs['laneLength']))
         },
             {
             'id': 'n_D',
             'x': str('%.1f' % center),
-            'y': str('%.1f' % -(self.configs['laneLength']))
+            'y': str('%.1f' % -(self.net_configs['laneLength']))
         },
             {
             'id': 'n_R',
-            'x': str('%.1f' % (self.configs['laneLength'])),
+            'x': str('%.1f' % (self.net_configs['laneLength'])),
             'y': str('%.1f' % center)
         },
             {
             'id': 'n_L',
-            'x': str('%.1f' % -(self.configs['laneLength'])),
+            'x': str('%.1f' % -(self.net_configs['laneLength'])),
             'y': str('%.1f' % center)
         }]
 
@@ -94,7 +94,7 @@ class GridNetwork(BaseNetwork):
                 if direction_list[i] in edge['from']:  # find only outNodes
                     destEdgeID = 'n_'+direction_list[3-i]
 
-                    if destEdgeID[-1] == direction_list[1] or destEdgeID[-1] == direction_list[2]:
+                    if destEdgeID[-1] == direction_list[1] or;;/ destEdgeID[-1] == direction_list[2]:
                         vehsPerHours = '900'  # 수직 통행량 900
                     else:
                         vehsPerHours = '1200'  # 수평 통행량 2000
@@ -103,8 +103,8 @@ class GridNetwork(BaseNetwork):
                         'from': edge['id'],
                         'to': destEdgeID,
                         'id': edge['from'],
-                        'begin': str(self.exp_configs['flow_start']),
-                        'end': str(self.exp_configs['flow_end']),
+                        'begin': str(self.net_configs['flow_start']),
+                        'end': str(self.net_configs['flow_end']),
                         'vehsPerHour': vehsPerHours,
                         'reroute': 'false',
                         'via': edge['id'] + ' ' + destEdgeID,

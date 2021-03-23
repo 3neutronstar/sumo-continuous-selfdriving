@@ -1,7 +1,7 @@
 from configs import EXP_CONFIGS
 import xml.etree.cElementTree as ET
 from xml.etree.ElementTree import dump
-from lxml import etree as ET
+from xml import etree as ET
 import os
 E = ET.Element
 

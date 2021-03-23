@@ -19,11 +19,11 @@ def parse_args(args):
     # 추가 옵션
 
     # choose road network
-    parser.add_argument('--net', type=str)
+    parser.add_argument('--network', type=str)
     # display the monitor
     parser.add_argument('--disp', type=bool, default=False)
     # algorithm decision
-    parser.add_argument('--alg', type=str, default='algorithm')
+    #parser.add_argument('--alg', type=str, default='algorithm')
     return parser.parse_known_args(args)[0]
 
 
@@ -83,12 +83,24 @@ def main(args):
 
     # 네트워크 호출
     configs['network'] = flags.network.lower()
+    configs['mode'] = flags.mode.lower()
 
     # 어떤 네트워크인지 체크
-    if configs['network'] == "네트워크 이름을 적어주세요":
-        configs['NET_CONFIGS']["grid_num"] = 3
+    if configs['network'] == "net":
+        from Network.net_1 import GridNetwork
+        #configs['NET_CONFIGS']["grid_num"] = 3
         # 추가..
         # #net 생성
+        if configs['mode'] == 'simulate':
+            configs['file_name'] = '{}x{}grid'.format(configs['NET_CONFIGS']['grid_num'], configs['NET_CONFIGS']['grid_num'])
+        elif configs['mode'] == 'test':  
+            pass
+            #configs['file_name'] = flags.replay_name.lower()
+        network = GridNetwork(configs)
+        network.generate_cfg(True, configs['mode'])
+        #네트워크의 congif들을 받고, configs의 딕셔너리에 넣어주기 위함
+        #NET부분에서 새로 생긴 configs들을 받아오는 작업이 필요하다.
+        #run, 수모 돌리는 부분 필요
 
     # enviornment 체크
     if 'SUMO_HOME' in os.environ:
