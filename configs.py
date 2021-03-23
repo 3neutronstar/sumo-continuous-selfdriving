@@ -3,8 +3,6 @@ Vehicles = list()
 DEFAULT_CONFIGS = {
 
     'EXP_CONFIGS': {
-        'vehicle_info': Vehicles,
-        'file_name': "3x3grid",
         'network': None,
         'max_steps': 3600,
     },

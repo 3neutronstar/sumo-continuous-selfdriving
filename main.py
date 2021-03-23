@@ -33,7 +33,7 @@ def test(flags, configs, sumoBinary, sumoConfig):
     # 알고리즘 평가
     traci.start(sumoCmd)
     step = 0
-    while step < configs['max_step']:
+    while step < configs['EXP_CONFIGS']['max_step']:
         traci.simulationStep()
         step += 1
 
@@ -50,7 +50,7 @@ def train(flags, configs, sumoBinary, sumoConfig):
     # state init
     state = env.init()
 
-    while step < configs['max_step']:
+    while step < configs['EXP_CONFIGS']['max_step']:
         agent.get_action(state)
         traci.simulationStep()  # agent.step안에 들어가야함
         next_state, reward = env.step(action)
@@ -96,7 +96,6 @@ def main(args):
     # 어떤 네트워크인지 체크
     from Network.baseNetwork import mainNetwork
     network = mainNetwork(file_path, configs).network
-    configs['NET_CONFIGS'] = NET_CONFIGS
     network.generate_cfg(True, configs['mode'])
     # network.sumo_gui()
     # 네트워크의 congfig들을 받고, configs의 딕셔너리에 넣어주기 위함

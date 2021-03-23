@@ -10,7 +10,6 @@ class mainNetwork():
         if configs['network'] == "cross":  # cross road 생성코드를 'net_1'로 수정할것
             from Network.cross import CrossNetwork
             self.network = CrossNetwork(file_path, configs['network'], configs)
-            print(configs)  # 여기서 netconfigs도 담겨 나오면 쓸모없는일임
         elif configs['network'] == "grid":  # grid.py를 'net_2.py'로 수정할것
             from Network.grid import GridNetwork
             self.network = GridNetwork(file_path, configs['network'], configs)
