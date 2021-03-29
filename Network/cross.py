@@ -56,8 +56,6 @@ class CrossNetwork(BaseNetwork):
 
         for _, node_info in enumerate(node_information):
             nodes.append(node_info)
-        self.configs['node_info'] = nodes
-        self.nodes = nodes
         return nodes
 
     # define edges
@@ -81,8 +79,6 @@ class CrossNetwork(BaseNetwork):
                 'numLanes': str(self.net_configs['numLanes'])
             }
             edges.append(edge_info)
-        self.edges = edges
-        self.net_configs['edge_info'] = edges
         return edges
 
     # define traffic flow
@@ -113,16 +109,7 @@ class CrossNetwork(BaseNetwork):
                         'departPos': "base",
                         'departLane': 'best',
                     })
-        self.flows = flows
-        self.net_configs['vehicle_info'] = flows
         return flows
-
-    # define connections
-    def specify_connection(self):
-        connections = list()
-
-        self.connections = connections
-        return connections
 
     # define traffic light
     def specify_traffic_light(self):
@@ -169,6 +156,15 @@ class CrossNetwork(BaseNetwork):
             'phase': phase_set,
         })
         return traffic_lights
+
+    #specify default route for agent
+    def specify_route(self):
+        route = list()
+        route.append({
+            'id': 'route_0',
+            'edges': 'L_to_C C_to_D',
+        })
+        return route     
 
     def generate_cfg(self, route_exist, mode='simulate'):
         self._generate_nod_xml()

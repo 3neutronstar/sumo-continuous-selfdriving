@@ -7,10 +7,10 @@ E = ET.Element
 
 class mainNetwork():
     def __init__(self, file_path, configs):
-        if configs['network'] == "cross":  # cross road 생성코드를 'net_1'로 수정할것
+        if configs['network'] == "cross":
             from Network.cross import CrossNetwork
             self.network = CrossNetwork(file_path, configs['network'], configs)
-        elif configs['network'] == "grid":  # grid.py를 'net_2.py'로 수정할것
+        elif configs['network'] == "grid":
             from Network.grid import GridNetwork
             self.network = GridNetwork(file_path, configs['network'], configs)
 
@@ -81,14 +81,7 @@ class BaseNetwork():
         '''
 
         return flows
-
-    def specify_connection(self):
-        connections = list()
-        '''
-        상속을 위한 함수
-        '''
-        return connections
-
+    
     def specify_outdata(self):
         outputData = list()
         '''
@@ -102,6 +95,22 @@ class BaseNetwork():
         상속을 위한 함수
         '''
         return traffic_light
+
+    #define vehicle type for agent 추가 210328
+    def specify_vType(self):
+        vType = list()
+        vType.append({
+            'id': 'car',
+            'vClass': 'passenger',
+            'length': '5',
+            'accel': '3.5',
+            'decel': '2.2',
+            'sigma': '1.0', #sigma: driver's imperfection
+            'maxSpeed': '10',
+            'guiShape': 'passenger',
+            'color': '1,0,0' #red
+        })
+        return vType
 
     def _generate_nod_xml(self):
         self.nodes = self.specify_node()
@@ -128,6 +137,7 @@ class BaseNetwork():
 
     def _generate_net_xml(self):
         file_name_str = os.path.join(self.current_Env_path, self.file_name)
+        
         if len(self.traffic_light) != 0:
             os.system('netconvert -n {0}.nod.xml -e {0}.edg.xml -i {0}_tl.add.xml -o {0}.net.xml'.format(
                 file_name_str))
@@ -140,48 +150,30 @@ class BaseNetwork():
 
     def _generate_rou_xml(self):
         self.flows = self.specify_flow()
+        self.routes = self.specify_route()
+        self.vTypes = self.specify_vType()
         route_xml = ET.Element('routes')
-        if len(self.vehicles) != 0:  # empty
-            for _, vehicle_dict in enumerate(self.vehicles):
-                route_xml.append(E('veh', attrib=vehicle_dict))
+        if len(self.vTypes) != 0:
+            for _, vType_dict in enumerate(self.vTypes):
+                route_xml.append(E('vType', attrib=vType_dict))
+                indent(route_xml, 1)        
+        if len(self.routes) != 0:
+            for _, route_dict in enumerate(self.routes):
+                route_xml.append(E('route', attrib=route_dict))
                 indent(route_xml, 1)
         if len(self.flows) != 0:
             for _, flow_dict in enumerate(self.flows):
                 route_xml.append(E('flow', attrib=flow_dict))
                 indent(route_xml, 1)
+
         dump(route_xml)
         tree = ET.ElementTree(route_xml)
         tree.write(os.path.join(self.current_Env_path, self.file_name+'.rou.xml'), pretty_print=True,
                    encoding='UTF-8', xml_declaration=True)
 
-    def _generate_con_xml(self):
-        self.cons = self.specify_connection()
-        con_xml = ET.Element('connections')
-        if len(self.connections) != 0:  # empty
-            for _, connection_dict in enumerate(self.connections):
-                con_xml.append(E('connection', attrib=connection_dict))
-                indent(con_xml, 1)
-
-        dump(con_xml)
-        tree = ET.ElementTree(con_xml)
-        tree.write(os.path.join(self.current_Env_path, self.file_name+'.con.xml'), pretty_print=True,
-                   encoding='UTF-8', xml_declaration=True)
-
     def _generate_add_xml(self):
         traffic_light_set = self.specify_traffic_light()
         self.traffic_light = traffic_light_set
-        data_additional = ET.Element('additional')
-        # edgeData와 landData파일의 생성위치는 data
-        data_additional.append(E('edgeData', attrib={'id': 'edgeData_00', 'file': '{}_edge.xml'.format(self.current_path+'/Net_data/'+self.file_name), 'begin': '0', 'end': str(
-            self.exp_configs['max_steps']), 'freq': '1000'}))
-        indent(data_additional, 1)
-        data_additional.append(E('laneData', attrib={'id': 'laneData_00', 'file': '{}_lane.xml'.format(self.current_path+'/Net_data/'+self.file_name), 'begin': '0', 'end': str(
-            self.exp_configs['max_steps']), 'freq': '1000'}))
-        indent(data_additional, 1)
-        dump(data_additional)
-        tree = ET.ElementTree(data_additional)
-        tree.write(os.path.join(self.current_Env_path, self.file_name+'_data.add.xml'),
-                   pretty_print=True, encoding='UTF-8', xml_declaration=True)
 
         tl_additional = ET.Element('additional')
         if len(self.traffic_light) != 0 or self.exp_configs['mode'] == 'simulate':
@@ -197,7 +189,7 @@ class BaseNetwork():
         tree = ET.ElementTree(tl_additional)
         tree.write(os.path.join(self.current_Env_path, self.file_name+'_tl.add.xml'),
                    pretty_print=True, encoding='UTF-8', xml_declaration=True)
-
+    
     def generate_cfg(self, route_exist, mode='simulate'):
         '''
         if all the generation over, inherit this function by `super`.
