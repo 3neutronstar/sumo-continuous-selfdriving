@@ -74,7 +74,9 @@ class DDPG():
             'cuda' if torch.cuda.is_available() else 'cpu')
         self.gamma = configs['gamma']
         self.actor = Actor(input_size, output_size, configs)
+        self.actor.to(self.device)
         self.actor_target = Actor(input_size, output_size, configs)
+        self.actor_target.to(self.device)
         self.actor_optim = optim.Adam(
             self.actor.parameters(), configs['actor']['lr'])
         self.actor_lr_scheduler = optim.lr_scheduler.StepLR(
@@ -82,7 +84,9 @@ class DDPG():
         hard_update(self.actor_target, self.actor)
 
         self.critic = Critic(input_size, output_size, configs)
+        self.critic_target.to(self.device)
         self.critic_target = Critic(input_size, output_size, configs)
+        self.critic_target.to(self.device)
         self.critic_optim = optim.Adam(
             self.critic.parameters(), configs['critic']['lr'])
         self.critic_lr_scheduler = optim.lr_scheduler.StepLR(

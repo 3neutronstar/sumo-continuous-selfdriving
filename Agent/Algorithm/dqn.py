@@ -36,8 +36,12 @@ class QNetwork(nn.modules):
 class DQN():
     def __init__(self, input_size, output_size, configs):
         self.configs = configs
+        self.device = torch.device(
+            'cuda' if torch.cuda.is_available() else 'cpu')
         self.behaviorQ = QNetwork(input_size, output_size, configs)
+        self.behaviorQ.to(self.device)
         self.targetQ = QNetwork(input_size, output_size, configs)
+        self.targetQ.to(self.device)
         hard_update(self.targetQ, self.behaviorQ)
         self.experience_replay = ReplayMemory(
             configs['experience_replay_size'])
@@ -71,7 +75,7 @@ class DQN():
 
         # 최종 상태가 아닌 마스크를 계산하고 배치 요소를 연결
         non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
-                                                batch.next_state)), device=self.configs['device'], dtype=torch.bool)
+                                                batch.next_state)), device=self.device, dtype=torch.bool)
 
         non_final_next_states = torch.cat([s for s in batch.next_state
                                            if s is not None], dim=0)
@@ -90,10 +94,10 @@ class DQN():
 
         # 모든 다음 상태를 위한 V(s_{t+1}) 계산
         next_state_values = torch.zeros(
-            self.configs['batch_size'], device=self.configs['device'], dtype=torch.float)
+            self.configs['batch_size'], device=self.device, dtype=torch.float)
 
         next_state_values[non_final_mask] = self.targetQNetwork(
-            non_final_next_states).max(1)[0].detach()  # .to(self.configs['device'])  # 자신의 Q value 중에서max인 value를 불러옴
+            non_final_next_states).max(1)[0].detach()  # .to(self.device)  # 자신의 Q value 중에서max인 value를 불러옴
 
         # 기대 Q 값 계산
         expected_state_action_values = (
