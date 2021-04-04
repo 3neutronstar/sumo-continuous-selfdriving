@@ -6,7 +6,7 @@ import traci
 import time
 from configs import DEFAULT_CONFIGS
 from sumolib import checkBinary
-
+import traci.constants as tc
 # 인자를 가져오는 함수
 
 
