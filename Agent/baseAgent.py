@@ -11,15 +11,15 @@ class MainAgent():
             from Agent.cross import CrossAgent
             self.network = CrossAgent(file_path, configs)
         elif configs['network'] == "grid":
-            from Agent.grid import GriadAgent
-            self.network = GriadAgent(file_path, configs)
+            from Agent.grid import GridAgent
+            self.network = GridAgent(file_path, configs)
 
 
 class BaseAgent():
     def __init__(self, file_path, configs):
         self.file_path = file_path
         self.action_size = configs['EXP_CONFIGS']['action_size']
-        self.state_size = configs['EXP_CONFIGS']['state_size']
+        self.state_size = configs['EXP_CONFIGS']['state_space']
 
         from Agent.Algorithm.dqn import DQN
         from Agent.Algorithm.ddpg import DDPG
@@ -33,3 +33,12 @@ class BaseAgent():
 
     def update(self, epoch):
         raise NotImplementedError
+
+    def update_tensorboard(self, writer, epoch):
+        writer.add_scalar('dqn/epsilon', self.dqn_model.epsilon, epoch)
+        writer.add_scalar(
+            'dqn/lr', self.dqn_model.optimizer.param_groups[0]['lr'], epoch)
+        writer.add_scalar(
+            'ddpg/actor_lr', self.ddpg_model.actor_optim.param_groups[0]['lr'], epoch)
+        writer.add_scalar(
+            'ddpg/critic_lr', self.ddpg_model.actor_optim.param_groups[0]['lr'], epoch)

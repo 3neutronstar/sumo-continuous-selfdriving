@@ -157,3 +157,7 @@ class DDPG():
 
     def save_replay(self, state, action, reward, next_state):
         self.experience_replay.push(state, action, reward, next_state)
+
+    def hyperparams_update(self):
+        self.actor_lr_scheduler.step()
+        self.critic_lr_scheduler.step()

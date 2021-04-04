@@ -42,8 +42,12 @@ class CrossAgent(BaseAgent):
 
     def update(self, epoch):
         dqn_loss = self.dqn_model.update(epoch)
-        ddpg_loss = self.ddpg_model.update(epoch)
+        ddpg_value_loss, ddpg_policy_loss = self.ddpg_model.update(epoch)
 
     def save_replay(self, state, action, reward, next_state):
         self.dqn_model.save_replay(state, action, reward, next_state)
         self.ddpg_model.save_replay(state, action, reward, next_state)
+
+    def hyperparams_update(self):
+        self.dqn_model.hyperparams_update(self)
+        self.ddpg_model.hyperparams_update(self)
