@@ -13,10 +13,8 @@ NET_CONFIGS = {
 
 class CrossNetwork(BaseNetwork):
     def __init__(self, file_path, file_name, configs):
-        self.configs = configs
         self.net_configs = NET_CONFIGS
         self.exp_configs = configs['EXP_CONFIGS']
-        self.configs['NET_CONFIGS'] = NET_CONFIGS
         super().__init__(file_path, file_name, self.configs)
 
     # define nodes
@@ -157,14 +155,14 @@ class CrossNetwork(BaseNetwork):
         })
         return traffic_lights
 
-    #specify default route for agent
+    # specify default route for agent
     def specify_route(self):
         route = list()
         route.append({
             'id': 'route_0',
             'edges': 'L_to_C C_to_D',
         })
-        return route     
+        return route
 
     def generate_cfg(self, route_exist, mode='simulate'):
         self._generate_nod_xml()

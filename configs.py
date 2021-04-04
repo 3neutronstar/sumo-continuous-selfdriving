@@ -5,6 +5,8 @@ DEFAULT_CONFIGS = {
     'EXP_CONFIGS': {
         'network': None,
         'max_steps': 3600,
+        'action_size': 2,
+        'state_space': 8,
     },
 
     # # NET_CONFIGS

@@ -24,7 +24,7 @@ AGENT_CONFIGS = {
 }
 
 
-class CrossAgent(BaseAgent):
+class GridAgent(BaseAgent):
     def __init__(self, file_path, configs):
         configs['AGENT_CONFIGS'] = AGENT_CONFIGS
         super(BaseAgent, self).__init__(file_path, configs)
