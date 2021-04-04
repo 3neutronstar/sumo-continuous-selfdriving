@@ -6,6 +6,8 @@ import traci
 import time
 from configs import DEFAULT_CONFIGS
 from sumolib import checkBinary
+from torch.utils.tensorboard import SummaryWriter
+
 
 # 인자를 가져오는 함수
 
@@ -23,6 +25,8 @@ def parse_args(args):
     parser.add_argument('--network', type=str)
     # display the monitor
     parser.add_argument('--disp', type=bool, default=False)
+    # agent decision
+    #parser.add_argument('--agent', type=str)
     # algorithm decision
     #parser.add_argument('--alg', type=str, default='algorithm')
     return parser.parse_known_args(args)[0]
@@ -41,24 +45,35 @@ def test(flags, configs, sumoBinary, sumoConfig):
 def train(flags, configs, sumoBinary, sumoConfig):
     sumoCmd = [sumoBinary, "-c", sumoConfig]
     # config 값 세팅하고, 지정된 알고리즘으로 트레이닝
-    traci.start(sumoCmd)
-    step = 0
-    # Agent
-    agent = ALG(configs)
+    file_path = os.path.dirname(os.path.abspath(__file__))
+    #agent 체크
+    from Agent.baseAgent import MainAgent
+    agent = MainAgent(file_path,configs)
     # Env
     env = ENV(configs)
-    # state init
+    # state init 에퐄 안에 넣어줘야하나?
     state = env.init()
 
-    while step < configs['EXP_CONFIGS']['max_step']:
-        agent.get_action(state)
-        traci.simulationStep()  # agent.step안에 들어가야함
-        next_state, reward = env.step(action)
-        step += 1
-        agent.update()
+    #Config 세팅
+    NUM_EPOCHS = configs['epochs']
+    MAX_STEPS = configs['max_steps']
+    epoch = 0
 
-    traci.close()
+    while epoch < NUM_EPOCHS:
+        traci.start(sumoCmd)
+        step = 0
+        arrived_vehicles = 0
+        while step < configs['EXP_CONFIGS']['max_step']:
+            agent.get_action(state)
+            traci.simulationStep()  # agent.step안에 들어가야함
+            next_state, reward = env.step(action)
+            step += 1
+            #arrived_vehicles += 해주는 과정 필요
+            agent.update()
 
+        traci.close()
+        #Tensorboard 가져오기 
+        update_tensorBoard(writer, agent, env, epoch)
 
 def simulate(flags, configs, sumoBinary, sumoConfig):
     sumoCmd = [sumoBinary, "-c", sumoConfig]
@@ -89,18 +104,17 @@ def main(args):
     else:  # simulate or train
         configs = DEFAULT_CONFIGS
 
-    # 네트워크 호출
+    # Argument 호출
     configs['network'] = flags.network.lower()
     configs['mode'] = flags.mode.lower()
-
+    configs['agent'] = flags.agent.lower()
     # 어떤 네트워크인지 체크
     from Network.baseNetwork import mainNetwork
     network = mainNetwork(file_path, configs).network
     network.generate_cfg(True, configs['mode'])
     # network.sumo_gui()
-    # 네트워크의 congfig들을 받고, configs의 딕셔너리에 넣어주기 위함
-    # NET부분에서 새로 생긴 configs들을 받아오는 작업이 필요하다.
-    # run, 수모 돌리는 부분 필요
+
+
 
     # enviornment 체크
     if 'SUMO_HOME' in os.environ:
@@ -130,6 +144,20 @@ def main(args):
         sumoConfig = os.path.join(
             file_path, 'Net_data', '{}_simulate.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
         simulate(flags, configs, sumoBinary, sumoConfig)
+
+writer = SummaryWriter()
+def update_tensorBoard(writer, agent, env, epoch):
+    #agent.update_tensorBoard   Loss, Learning Rate, Epsilon
+    writer.add_scalar('loss', agent.running_loss / agent.configs['max_steps'],
+                        agent.configs['max_steps'] * epoch)
+    writer.add_scalar('learning_rate', agent.lr,
+                        agent.configs['max_steps'] * epoch)
+    writer.add_scalar('epsilon',
+                        agent.epsilon, agent.configs['max_steps'] * epoch)
+
+    #env.update_tensorBoard   Reward
+    writer.add_scalar('episode/reward', env.reward.sum(),
+                          env.configs['max_steps'] * epoch)
 
 
 if __name__ == '__main__':
