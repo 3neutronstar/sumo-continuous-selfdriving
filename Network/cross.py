@@ -177,5 +177,5 @@ if __name__ == "__main__":
     configs = dict()
     configs['EXP_CONFIGS'] = EXP_CONFIGS
     configs['NET_CONFIGS'] = NET_CONFIGS
-    a = GridNetwork(configs)
+    a = CrossNetwork(configs)
     a.generate_cfg(True)

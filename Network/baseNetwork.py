@@ -109,6 +109,7 @@ class BaseNetwork():
             'maxSpeed': '10',
             'guiShape': 'passenger',
             'color': '1,0,0' #red
+            'lcKeepRight': '0'
         })
         return vType
 
