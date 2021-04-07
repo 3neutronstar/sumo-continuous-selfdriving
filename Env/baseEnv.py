@@ -14,7 +14,11 @@ state -> (agent갯수(1)) * (state갯수(8)) tensor
 action -> (agent갯수(1) * (action_size(2)) tensor
 reward -> (agent갯수(1)) * (1) tensor
 '''
-
+'''
+1.이전 action을 반환
+2.next state 계산
+3.
+'''
 import torch
 import traci
 from copy import deepcopy
@@ -35,50 +39,67 @@ class Env():
         self.agent_list = agent_list
         self.num_agent = len(agent_list)
 
-
         self.reward = torch.zeros((1, self.num_agent), dtype=torch.float, device=device)
         self.cum_reward = torch.zeros_like(self.reward)
         self.state_space = state_space
-        self.action_size = action_size
-   
+  
+    '''
+    def get_action(self, mask):
+        action = torch.zeros(
+            (self.num_agent, self.action_size), dtype=torch.float, device=device)
 
+        for idx in torch.nonzero(mask):
+            action[idx,:] = deepcopy(self.tl_rl_memory[index].action)
+
+        return action
+    '''  
+    
     def collect_state(self):         
-        num_observ = len(self.observ_list)
+        self.agent_list = agent_list
+        self.num_agent = len(self.agent_list)
+        self.observ_list = self.observ_list()
+        
         next_state = torch.zeros(
             (self.num_agent, self.state_space), dtype=torch.float, device=device)
-        #agent_state는 agent별 state를 나타냄
         agent_state = torch.zeros(
-            (1, num_observ), dtype=torch.float, device=device)
+            (1, num_observ), dtype=torch.float, device=device) #agent_state는 agent별 state를 나타냄
         
         for _, agent in enumerate(self.agent_list):
-            for idx in enumerate(observ_list):
+            for idx in enumerate(self.observ_list):
                 agent_state[0, idx] = observ[idx](agent)
                 next_state[_,:] = next_state.clone().detach()
 
         return next_state
 
 
-    def collect_reward(self, action_update_mask, action_index_matrix, mask_matrix):
+    def collect_reward(self):
+        self.agent_list = agent_list
+        self.num_agent = len(self.agent_list)
+        
         reward = torch.zeros(
             (self.num_agent, 1), dtype=torch.float, device=device)
         agent_reward = torch.zeros(
             (1, 1), detype=torch.float, device=device)
-        cum_reward = torch.like(reward)
-        for _ in enumerate(self.agent_list):           
-            agent_reward[0, 0] = getSpeed(agent)
+        #cum_reward = torch.like(reward) cumulative reward 필요한가?
+        
+        for _, agent in enumerate(self.agent_list):           
+            agent_reward[0, 0] = traci.vehicle.getSpeed(agent)
             reward = agent_reward.clone().detach()
 
-        #self.cum_reward += reward
+        #self.cum_reward += reward        
+        return reward      
+   
+    def step(self, action):
+        #agent로부터 action tensor를 반환받을것
+        action = torch.zeros(
+            (self.num_agent, action_size), dtype=torch.float, device=device)
         
-        return reward
-        
-       
-    def step(self, action, mask_matrix, action_index_matrix, action_update_mask):
         #action mapping
         for _, agent in torch.nonzero(mask_matrix):
-            currentSpeed = getSpeed(agent)
+            currentSpeed = traci.vehicle.getSpeed(agent)
             acc = action[_, 0]
-            traci.vehicle.setSpeed(agent, currentSpeed + acc)\
+            traci.vehicle.setSpeed(agent, currentSpeed+acc)
+            
             if action[_, 1] == 1:
                 self.actionLeftLane(agent)
             elif action[_, 1] == -1:
@@ -123,9 +144,9 @@ class Env():
             followDistance = -1        
         return followDistance
 
-    def _observ_list(self):
-        observ = list()
-        observ.append = [
+    def observ_list(self):
+        #observ = list()
+        observ = [
              ChangeLaneRight, #whether agent can make lane change to right
              ChangeLaneLeft, #whether agent can make lane change to left
              traci.vehicle.getSpeed, #current speed of agent
