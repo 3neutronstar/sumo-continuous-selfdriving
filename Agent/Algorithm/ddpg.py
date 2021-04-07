@@ -150,8 +150,8 @@ class DDPG():
         self.actor_optim.step()
 
         # update target
-        soft_update(self.actor_target, self.actor)
-        soft_update(self.critic_target, self.critic)
+        soft_update(self.actor_target, self.actor,self.configs['actor']['tau'])
+        soft_update(self.critic_target, self.critic,self.configs['critic']['tau'])
 
         return value_loss.item(), policy_loss.item()
 

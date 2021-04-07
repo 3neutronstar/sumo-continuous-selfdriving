@@ -39,9 +39,10 @@ class Env():
         self.agent_list = agent_list
         self.num_agent = len(agent_list)
 
-        self.reward = torch.zeros((1, self.num_agent), dtype=torch.float, device=device)
+        self.reward = torch.zeros((self.num_agent,1), dtype=torch.float, device=device)
         self.cum_reward = torch.zeros_like(self.reward)
         self.state_space = state_space
+        self.observ_list = self.get_observ_list()
   
     '''
     def get_action(self, mask):
@@ -53,21 +54,32 @@ class Env():
 
         return action
     '''  
+    def agent_update(self):
+        # agent의 생성과 제거를 판단
+        for idx,agent in enumerate(self.agent_list):
+            if agent in traci.simulation.getArrviedIDList():
+                self.agent_list.pop(idx) # 도착차량 제거
+                self.num_agent-=1
+        
+        #생성된 차량 추가
+        for id in traci.simulation.getLoadedIDList():
+            if traci.vehicle.getTypeID(id)=='rl_agent':
+                self.agent_list.append(id)
+                self.num_agent+=1
     
     def collect_state(self):         
         self.agent_list = agent_list
         self.num_agent = len(self.agent_list)
-        self.observ_list = self.observ_list()
         
         next_state = torch.zeros(
             (self.num_agent, self.state_space), dtype=torch.float, device=device)
         agent_state = torch.zeros(
-            (1, num_observ), dtype=torch.float, device=device) #agent_state는 agent별 state를 나타냄
+            (1,self.state_space), dtype=torch.float, device=device) #agent_state는 agent별 state를 나타냄
         
-        for _, agent in enumerate(self.agent_list):
-            for idx in enumerate(self.observ_list):
+        for i, agent in enumerate(self.agent_list):
+            for idx,observ in enumerate(self.observ_list):
                 agent_state[0, idx] = observ[idx](agent)
-                next_state[_,:] = next_state.clone().detach()
+                next_state[i,:] = next_state.clone().detach()
 
         return next_state
 
@@ -82,8 +94,8 @@ class Env():
             (1, 1), detype=torch.float, device=device)
         #cum_reward = torch.like(reward) cumulative reward 필요한가?
         
-        for _, agent in enumerate(self.agent_list):           
-            agent_reward[0, 0] = traci.vehicle.getSpeed(agent)
+        for idx, agent in enumerate(self.agent_list):           
+            agent_reward[idx] = traci.vehicle.getSpeed(agent)
             reward = agent_reward.clone().detach()
 
         #self.cum_reward += reward        
@@ -93,16 +105,18 @@ class Env():
         #agent로부터 action tensor를 반환받을것
         action = torch.zeros(
             (self.num_agent, action_size), dtype=torch.float, device=device)
+
+        #agent update부분
         
         #action mapping
-        for _, agent in torch.nonzero(mask_matrix):
+        for idx,agent in enumerate(self.agent_list):
             currentSpeed = traci.vehicle.getSpeed(agent)
-            acc = action[_, 0]
+            acc = action[idx, 0]
             traci.vehicle.setSpeed(agent, currentSpeed+acc)
             
-            if action[_, 1] == 1:
+            if action[idx, 1] == 1:
                 self.actionLeftLane(agent)
-            elif action[_, 1] == -1:
+            elif action[idx, 1] == -1:
                 self.actionRightLane(agent)
             else:
                 self.actionStayLane(agent)
@@ -110,6 +124,8 @@ class Env():
         #action 적용
         traci.simulationStep()
 
+        #agent의 생성이나 제거를 판단
+        self.agent_update()
         #next_state 생성
         next_state = self.collect_state()
         
@@ -144,19 +160,19 @@ class Env():
             followDistance = -1        
         return followDistance
 
-    def observ_list(self):
+    def get_observ_list(self):
         #observ = list()
-        observ = [
-             ChangeLaneRight, #whether agent can make lane change to right
-             ChangeLaneLeft, #whether agent can make lane change to left
+        observ_list = [
+             self.ChangeLaneRight, #whether agent can make lane change to right
+             self.ChangeLaneLeft, #whether agent can make lane change to left
              traci.vehicle.getSpeed, #current speed of agent
-             leader, #distance between leading car
-             follower, #distance between following car
+             self.leader, #distance between leading car
+             self.follower, #distance between following car
              traci.vehicle.getLaneIndex, #index of current lane
              traci.vehicle.getRouteIndex, #index of current edge
              0 #for 내 차량이 갈 방향
         ]
-        return observ
+        return observ_list
 
     
     #move to left lane

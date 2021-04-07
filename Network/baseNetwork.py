@@ -108,8 +108,8 @@ class BaseNetwork():
             'sigma': '1.0', #sigma: driver's imperfection
             'maxSpeed': '10',
             'guiShape': 'passenger',
-            'color': '1,0,0' #red
-            'lcKeepRight': '0'
+            'color': '1,0,0', #red
+            'lcKeepRight': '0',
         })
         return vType
 
