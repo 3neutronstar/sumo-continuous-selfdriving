@@ -15,12 +15,14 @@ action -> (agent갯수(1) * (action_size(2)) tensor
 reward -> (agent갯수(1)) * (1) tensor
 '''
 '''
-1.이전 action을 반환
-2.next state 계산
-3.
+done: 차량이 도착하거나 그 밖의 이유로 사라지는 경우
+transition 입장에서 state와 action tensor는 존재하나 reward는 존재하지 않는 경우가 발생
+reward가 없어지는 경우는 done mask를 이용해서 덮어씌워야 하는 기능이 필요할 가능성이 있음.
 '''
+
 import torch
 import traci
+import time
 from copy import deepcopy
 from configs import EXP_CONFIGS
 
@@ -44,29 +46,33 @@ class Env():
         self.state_space = state_space
         self.observ_list = self.get_observ_list()
   
-    '''
-    def get_action(self, mask):
-        action = torch.zeros(
-            (self.num_agent, self.action_size), dtype=torch.float, device=device)
 
-        for idx in torch.nonzero(mask):
-            action[idx,:] = deepcopy(self.tl_rl_memory[index].action)
+    def init(self):
+        self.collect_state()
+    
+    #agent 투입, 각 agent의 departure 간에 적절한 delay 삽입
+    def add_agent(self, step):
+        if step >= 1:
+            for id in self.agent_list:
+                traci.vehicle.add(vehID=id, routeID='route_0', typeID='car', departLane='random')
+                time.sleep(0.2) 
 
-        return action
-    '''  
+
+    #agent의 생성과 제거를 판단
     def agent_update(self):
-        # agent의 생성과 제거를 판단
-        for idx,agent in enumerate(self.agent_list):
+        #도착한 agent 제거
+        for idx, agent in enumerate(self.agent_list):
             if agent in traci.simulation.getArrviedIDList():
-                self.agent_list.pop(idx) # 도착차량 제거
+                self.agent_list.pop(idx) #agent_list에서 도착 agent 제거
                 self.num_agent-=1
         
-        #생성된 차량 추가
+        #생성된 agent 추가
         for id in traci.simulation.getLoadedIDList():
             if traci.vehicle.getTypeID(id)=='rl_agent':
                 self.agent_list.append(id)
                 self.num_agent+=1
     
+
     def collect_state(self):         
         self.agent_list = agent_list
         self.num_agent = len(self.agent_list)
@@ -101,13 +107,15 @@ class Env():
         #self.cum_reward += reward        
         return reward      
    
-    def step(self, action):
-        #agent로부터 action tensor를 반환받을것
-        action = torch.zeros(
-            (self.num_agent, action_size), dtype=torch.float, device=device)
+    def step(self, action, step):
+        self.init()
+        
+        #agent 투입
+        self.add_agent(step)
 
         #agent update부분
-        
+        self.agent_update()        
+                
         #action mapping
         for idx,agent in enumerate(self.agent_list):
             currentSpeed = traci.vehicle.getSpeed(agent)
