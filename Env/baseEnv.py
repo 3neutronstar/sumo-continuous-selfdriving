@@ -48,14 +48,18 @@ class Env():
   
 
     def init(self):
-        self.collect_state()
+        state=self.collect_state()
+        return state
     
     #agent 투입, 각 agent의 departure 간에 적절한 delay 삽입
     def add_agent(self, step):
         if step >= 1:
-            for id in self.agent_list:
+            for id in self.agent_list: # self.gen_agent_list= enumerate() <-iterator : next함수 사용가능
                 traci.vehicle.add(vehID=id, routeID='route_0', typeID='car', departLane='random')
-                time.sleep(0.2) 
+        # if step%5==0:
+        #    idx,id=next(gen_list)
+        #    traci.vehicle.add(vehId=id)
+        
 
 
     #agent의 생성과 제거를 판단
@@ -108,7 +112,6 @@ class Env():
         return reward      
    
     def step(self, action, step):
-        self.init()
         
         #agent 투입
         self.add_agent(step)

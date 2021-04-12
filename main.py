@@ -19,7 +19,6 @@ def parse_args(args):
                         'train', 'simulate', 'test'])
 
     # 추가 옵션
-
     # choose road network
     parser.add_argument('--network', type=str)
     # display the monitor
@@ -70,6 +69,7 @@ def train(flags, configs, sumoBinary, sumoConfig):
             step += 1
             #arrived_vehicles += 해주는 과정 필요
             agent.update()
+            state=next_state
 
         traci.close()
         #Tensorboard 가져오기 
