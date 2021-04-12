@@ -7,6 +7,7 @@ import time
 from configs import DEFAULT_CONFIGS
 from sumolib import checkBinary
 from torch.utils.tensorboard import SummaryWriter
+from utils import update_tensorBoard
 import traci.constants as tc
 from Env.baseEnv import Env
 # 인자를 가져오는 함수
@@ -150,20 +151,6 @@ def main(args):
         sumoConfig = os.path.join(
             file_path, 'Net_data', '{}_simulate.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
         simulate(flags, configs, sumoBinary, sumoConfig)
-
-writer = SummaryWriter()
-def update_tensorBoard(writer, agent, env, epoch):  # 메인에서 끌어오는 형식으로 해보려고 한다.
-    #agent.update_tensorBoard   Loss, Learning Rate, Epsilon dqn으로 설정해놓음
-    writer.add_scalar('loss', agent.dqn_model.running_loss / agent.configs['max_steps'],
-                        agent.configs['max_steps'] * epoch)
-    writer.add_scalar('learning_rate', agent.dqn_model.optimizer.param_groups[0]['lr'],
-                        agent.configs['max_steps'] * epoch)
-    writer.add_scalar('epsilon',
-                        agent.dqn_model.epsilon, agent.configs['max_steps'] * epoch)
-
-    #env.update_tensorBoard   Reward
-    writer.add_scalar('episode/reward', env.reward.sum(),
-                          env.configs['max_steps'] * epoch)
 
 
 if __name__ == '__main__':
