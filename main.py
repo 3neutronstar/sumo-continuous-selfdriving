@@ -66,10 +66,11 @@ def train(time_data, configs, sumoBinary, sumoConfig):
 
         while step < configs['EXP_CONFIGS']['max_steps']:
             action = agent.get_action(state,num_agent)
-            next_state, reward,num_agent = env.step(action,step)
+            next_state, reward, num_agent = env.step(action,step)
             step += 1
             #arrived_vehicles += 해주는 과정 필요
-            agent.save_replay(state, action, reward, next_state,num_agent)
+            print(num_agent)
+            agent.save_replay(state, action, reward, next_state, num_agent)
             agent.update(epoch)
             state = next_state
             total_reward += reward
@@ -78,7 +79,7 @@ def train(time_data, configs, sumoBinary, sumoConfig):
         epoch += 1
         agent.hyperparams_update()
         #Tensorboard 가져오기 
-        update_tensorBoard(writer, agent, env, epoch)
+        update_tensorBoard(writer, agent, env, epoch, configs)
     writer.close()
 
 def simulate(flags, configs, sumoBinary, sumoConfig):

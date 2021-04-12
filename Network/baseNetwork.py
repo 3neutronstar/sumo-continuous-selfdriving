@@ -100,7 +100,7 @@ class BaseNetwork():
     def specify_vType(self):
         vType = list()
         vType.append({
-            'id': 'car',
+            'id': 'rl_agent',
             'vClass': 'passenger',
             'length': '5',
             'accel': '3.5',

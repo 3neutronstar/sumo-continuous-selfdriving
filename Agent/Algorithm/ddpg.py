@@ -109,12 +109,12 @@ class DDPG():
         mu = mu.data
 
         if self.action_noise is not None:
-            noise = torch.Tensor(self.action_noise.noise()).to(
+            noise = torch.Tensor(self.action_noise.sample()).to(
                 self.device)
             mu += noise
 
         mu = mu.clamp(1, -1)
-        return mu.view(1,1)
+        return mu
 
     def update(self, epoch):
         if len(self.experience_replay) <= self.configs['batch_size']:

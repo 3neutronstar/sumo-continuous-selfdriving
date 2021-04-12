@@ -57,29 +57,33 @@ class Env():
     #agent 투입, 각 agent의 departure 간에 적절한 delay 삽입
     def add_agent(self, step):
         if step == 1:
-            traci.vehicle.add(vehID=self.gen_agent_list[0], routeID='route_0', typeID='car', departLane='random')
+            traci.vehicle.add(vehID=self.gen_agent_list[0], routeID='route_0', typeID='rl_agent', departLane='random')
+            self.agent_list.append(self.gen_agent_list[0])
+            self.num_agent+=1
         if step == 50:
-            traci.vehicle.add(vehID=self.gen_agent_list[1], routeID='route_0', typeID='car', departLane='random')
+            traci.vehicle.add(vehID=self.gen_agent_list[1], routeID='route_0', typeID='rl_agent', departLane='random')
+            self.agent_list.append(self.gen_agent_list[1])
+            self.num_agent+=1
         elif step==200:
-            traci.vehicle.add(vehID=self.gen_agent_list[2], routeID='route_0', typeID='car', departLane='random')
+            traci.vehicle.add(vehID=self.gen_agent_list[2], routeID='route_0', typeID='rl_agent', departLane='random')
+            self.agent_list.append(self.gen_agent_list[2])
+            self.num_agent+=1
         elif step==250:
-            traci.vehicle.add(vehID=self.gen_agent_list[3], routeID='route_0', typeID='car', departLane='random')
+            traci.vehicle.add(vehID=self.gen_agent_list[3], routeID='route_0', typeID='rl_agent', departLane='random')
+            self.agent_list.append(self.gen_agent_list[3])
+            self.num_agent+=1
 
 
 
     #agent의 생성과 제거를 판단
     def agent_update(self):
         #도착한 agent 제거
+        arrived_list=traci.simulation.getArrivedIDList()
         for idx, agent in enumerate(self.agent_list):
-            if agent in traci.simulation.getArrviedIDList():
+            if agent in arrived_list:
                 self.agent_list.pop(idx) #agent_list에서 도착 agent 제거
                 self.num_agent-=1
-        
-        #생성된 agent 추가
-        for id in traci.simulation.getLoadedIDList():
-            if traci.vehicle.getTypeID(id)=='rl_agent':
-                self.agent_list.append(id)
-                self.num_agent+=1
+                print(self.num_agent)       
     
 
     def collect_state(self):         
@@ -110,10 +114,8 @@ class Env():
         return reward      
    
     def step(self, action, step):
-        if self.num_agent == 0:
-            pass
             #action mapping
-        else:    
+        if self.num_agent!=0:
             for idx,agent in enumerate(self.agent_list):
                 currentSpeed = traci.vehicle.getSpeed(agent)
                 acc = action[idx, 0]
@@ -173,14 +175,14 @@ class Env():
     def get_observ_list(self):
         #observ = list()
         observ_list = [
+             traci.vehicle.getSpeed, #current speed of agent
              self.changeLaneRight, #whether agent can make lane change to right
              self.changeLaneLeft, #whether agent can make lane change to left
-             traci.vehicle.getSpeed, #current speed of agent
              self.leader, #distance between leading car
              self.follower, #distance between following car
              traci.vehicle.getLaneIndex, #index of current lane
              traci.vehicle.getRouteIndex, #index of current edge
-             0 #for 내 차량이 갈 방향
+            #  0 #for 내 차량이 갈 방향
         ]
         return observ_list
 

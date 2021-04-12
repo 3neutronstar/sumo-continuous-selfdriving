@@ -34,9 +34,9 @@ class CrossAgent(BaseAgent):
         actions = list()
         if num_agent!=0:
             for state in states:
-                dqn_action = self.dqn_model.get_action(state)
+                dqn_action = self.dqn_model.get_action(state.view(1, -1))
                 ddpg_action = self.ddpg_model.get_action(
-                    torch.cat((state, dqn_action.detach().clone()), dim=1))
+                    torch.cat((state.view(1,-1), dqn_action.detach().clone()), dim=1))
                 actions.append(torch.cat((dqn_action, ddpg_action), dim=1))
         if len(actions)!=0:
             actions = torch.cat(actions, dim=0).detach().clone()
