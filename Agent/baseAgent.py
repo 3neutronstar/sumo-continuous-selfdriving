@@ -28,6 +28,10 @@ class BaseAgent():
             self.state_size, self.action_size, configs['AGENT_CONFIGS']['dqn'])
         self.ddpg_model = DDPG(
             self.state_size+1, self.action_size, configs['AGENT_CONFIGS']['ddpg'])
+        
+        self.dqn_loss=0
+        self.ddpg_policy_loss=0
+        self.ddpg_actor_loss=0
 
     def get_action(self, state, num_agent):
         raise NotImplementedError

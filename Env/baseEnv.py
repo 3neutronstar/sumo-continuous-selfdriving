@@ -24,12 +24,11 @@ import torch
 import traci
 import time
 from copy import deepcopy
-from configs import EXP_CONFIGS
 
 
 ENV_CONFIGS = {
     'state_space': 8,
-    'gen_agent_list': ['agent_0'],
+    'gen_agent_list': ['agent_0','agent_1','agent_2','agent_3'],
     'action_size': 2 #방향(좌/우) / 속도(가속/감속)
 }
 
@@ -37,28 +36,35 @@ ENV_CONFIGS = {
 class Env():
     #__init__에서 반영하는 변수는 추후 config.py로 이동할것
     def __init__(self, configs):
+        configs['ENV_CONFIGS']=ENV_CONFIGS
         self.env_configs = ENV_CONFIGS
         self.agent_list = list()
         self.gen_agent_list = self.env_configs['gen_agent_list']
         self.num_agent = 0
         self.state_space = self.env_configs['state_space']
+        self.device = torch.device(
+            'cuda' if torch.cuda.is_available() else 'cpu')
 
         self.reward = torch.zeros((self.num_agent, 1), dtype=torch.float, device=self.device)
 
         self.observ_list = self.get_observ_list()
-        self.device = torch.device(
-            'cuda' if torch.cuda.is_available() else 'cpu')
   
 
     def init(self):
         state = self.collect_state()
-        return state
+        return state,self.num_agent
     
     #agent 투입, 각 agent의 departure 간에 적절한 delay 삽입
     def add_agent(self, step):
         if step == 1:
-            for id in self.gen_agent_list:
-                traci.vehicle.add(vehID=id, routeID='route_0', typeID='car', departLane='random')
+            traci.vehicle.add(vehID=self.gen_agent_list[0], routeID='route_0', typeID='car', departLane='random')
+        if step == 50:
+            traci.vehicle.add(vehID=self.gen_agent_list[1], routeID='route_0', typeID='car', departLane='random')
+        elif step==200:
+            traci.vehicle.add(vehID=self.gen_agent_list[2], routeID='route_0', typeID='car', departLane='random')
+        elif step==250:
+            traci.vehicle.add(vehID=self.gen_agent_list[3], routeID='route_0', typeID='car', departLane='random')
+
 
 
     #agent의 생성과 제거를 판단
@@ -97,7 +103,7 @@ class Env():
             (self.num_agent, 1), dtype=torch.float, device=self.device)
         #cum_reward = torch.like(reward) cumulative reward 필요한가?
         
-        for idx, agent in enumerate(self.gen_agent_list):           
+        for idx, agent in enumerate(self.agent_list):           
             agent_reward[idx] = traci.vehicle.getSpeed(agent)
             reward = agent_reward.clone().detach()
     
@@ -167,8 +173,8 @@ class Env():
     def get_observ_list(self):
         #observ = list()
         observ_list = [
-             self.ChangeLaneRight, #whether agent can make lane change to right
-             self.ChangeLaneLeft, #whether agent can make lane change to left
+             self.changeLaneRight, #whether agent can make lane change to right
+             self.changeLaneLeft, #whether agent can make lane change to left
              traci.vehicle.getSpeed, #current speed of agent
              self.leader, #distance between leading car
              self.follower, #distance between following car

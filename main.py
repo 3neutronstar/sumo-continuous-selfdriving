@@ -41,7 +41,7 @@ def test(flags, configs, sumoBinary, sumoConfig):
         step += 1
 
 
-def train(flags, configs, sumoBinary, sumoConfig):
+def train(time_data, configs, sumoBinary, sumoConfig):
     sumoCmd = [sumoBinary, "-c", sumoConfig]
     # config 값 세팅하고, 지정된 알고리즘으로 트레이닝
     file_path = os.path.dirname(os.path.abspath(__file__))
@@ -50,7 +50,7 @@ def train(flags, configs, sumoBinary, sumoConfig):
 
     agent = MainAgent(file_path,configs).network
     # training data 경로 설정
-    writer = SummaryWriter(os.path.join(file_path, 'training_data'))
+    writer = SummaryWriter(os.path.join(file_path, 'training_data',time_data))
     #Config 세팅
     epoch = 0
 
@@ -139,7 +139,7 @@ def main(args):
     if flags.mode.lower() == 'train':
         sumoConfig = os.path.join(
             file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
-        train(flags, configs, sumoBinary, sumoConfig)
+        train(time_data, configs, sumoBinary, sumoConfig)
 
     elif flags.mode.lower() == 'test':
         sumoConfig = os.path.join(#time인지 file_name인지 명시
@@ -159,7 +159,6 @@ def update_tensorBoard(writer, agent, env, epoch):  # 메인에서 끌어오는 
                         agent.configs['max_steps'] * epoch)
     writer.add_scalar('epsilon',
                         agent.dqn_model.epsilon, agent.configs['max_steps'] * epoch)
-
     #env.update_tensorBoard   Reward
     writer.add_scalar('episode/reward', env.reward.sum(),
                           env.configs['max_steps'] * epoch)

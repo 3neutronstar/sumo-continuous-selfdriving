@@ -92,9 +92,9 @@ class CrossNetwork(BaseNetwork):
                     destEdgeID = 'C_to_'+direction_list[3-i]
 
                     if destEdgeID[-1] == direction_list[1] or destEdgeID[-1] == direction_list[2]:
-                        vehsPerHours = '900'  # 수직 통행량 900
+                        vehsPerHours = '300'  # 수직 통행량 900
                     else:
-                        vehsPerHours = '1200'  # 수평 통행량 2000
+                        vehsPerHours = '400'  # 수평 통행량 2000
 
                     flows.append({
                         'from': edge['id'],
@@ -117,28 +117,28 @@ class CrossNetwork(BaseNetwork):
         g = 'G'
         r = 'r'
         phase_set = [
-            {'duration': '37',  # 1
+            {'duration': '15',  # 1
                 'state': 'r{2}{1}gr{2}{3}rr{2}{1}gr{2}{3}r'.format(  # 위좌아래좌
                     g*numLanes, g, r*numLanes, r),
              },
             {'duration': '3',
                 'state': 'y'*(12+4*numLanes),
              },
-            {'duration': '37',  # 2
+            {'duration': '25',  # 2
                 'state': 'G{0}{3}rr{2}{3}rG{0}{3}rr{2}{3}r'.format(  # 위직아래직
                     g*numLanes, g, r*numLanes, r),  # current
              },
             {'duration': '3',
                 'state': 'y'*(12+4*numLanes),
              },
-            {'duration': '37',  # 1
+            {'duration': '15',  # 1
                 'state': 'r{2}{3}rr{2}{1}gr{2}{3}rr{2}{1}g'.format(  # 좌좌우좌
                     g*numLanes, g, r*numLanes, r),
              },
             {'duration': '3',
                 'state': 'y'*(12+4*numLanes),
              },
-            {'duration': '37',  # 1
+            {'duration': '25',  # 1
                 'state': 'r{2}{3}rG{0}{3}rr{2}{3}rG{0}{3}g'.format(  # 좌직우직
                     g*numLanes, g, r*numLanes, r),  # current
              },

@@ -54,6 +54,7 @@ class DQN():
         self.epsilon_decaying_rate = configs['epsilon_decaying_rate']
         self.final_epsilon = configs['epsilon_final']
 
+
     def get_action(self, state):
         if random.random() > self.epsilon:  # epsilon greedy
             with torch.no_grad():

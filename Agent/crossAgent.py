@@ -32,7 +32,6 @@ class CrossAgent(BaseAgent):
 
     def get_action(self, states,num_agent):
         actions = list()
-        print(self.dqn_model)
         if num_agent!=0:
             for state in states:
                 dqn_action = self.dqn_model.get_action(state)
@@ -56,5 +55,5 @@ class CrossAgent(BaseAgent):
             return
 
     def hyperparams_update(self):
-        self.dqn_model.hyperparams_update(self)
-        self.ddpg_model.hyperparams_update(self)
+        self.dqn_model.hyperparams_update()
+        self.ddpg_model.hyperparams_update()
