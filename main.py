@@ -48,18 +48,10 @@ def train(flags, configs, sumoBinary, sumoConfig):
     file_path = os.path.dirname(os.path.abspath(__file__))
     #agent 체크
     from Agent.baseAgent import MainAgent
-<<<<<<< HEAD
+
     agent = MainAgent(file_path,configs).network
     # training data 경로 설정
     writer = SummaryWriter(os.path.join(file_path, 'training_data'))
-=======
-    from Env.baseEnv import Env
-    agent = MainAgent(file_path,configs)
-    # Env
-    env = Env(configs)
-    # state init 에퐄 안에 넣어줘야하나?
-
->>>>>>> e46ada94fbf5c8ceadb02bb1b31085039000a412
     #Config 세팅
     NUM_EPOCHS = configs['epochs']
     MAX_STEPS = configs['max_steps']
@@ -67,20 +59,14 @@ def train(flags, configs, sumoBinary, sumoConfig):
 
     while epoch < NUM_EPOCHS:
         traci.start(sumoCmd)
-        state = env.init()
         step = 0
-        env = ENV(configs)
+        env = Env(configs)
         state = env.init()
         total_reward = 0
         reward = 0
 
         while step < configs['EXP_CONFIGS']['max_step']:
-<<<<<<< HEAD
             action = agent.get_action(state)
-=======
-            action=agent.get_action(state)
-            traci.simulationStep()  # agent.step안에 들어가야함
->>>>>>> e46ada94fbf5c8ceadb02bb1b31085039000a412
             next_state, reward = env.step(action)
             step += 1
             agent.save_replay(state, action, reward, next_state)
