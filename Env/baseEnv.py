@@ -57,10 +57,10 @@ class Env():
     def agent_update(self):
         # agent의 생성과 제거를 판단
         for idx,agent in enumerate(self.agent_list):
-            if agent in traci.simulation.getArrviedIDList():
+            if agent in traci.simulation.getArrivedIDList():
                 self.agent_list.pop(idx) # 도착차량 제거
                 self.num_agent-=1
-        
+
         #생성된 차량 추가
         for id in traci.simulation.getLoadedIDList():
             if traci.vehicle.getTypeID(id)=='rl_agent':

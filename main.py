@@ -47,11 +47,11 @@ def train(flags, configs, sumoBinary, sumoConfig):
     file_path = os.path.dirname(os.path.abspath(__file__))
     #agent 체크
     from Agent.baseAgent import MainAgent
+    from Env.baseEnv import Env
     agent = MainAgent(file_path,configs)
     # Env
-    env = ENV(configs)
+    env = Env(configs)
     # state init 에퐄 안에 넣어줘야하나?
-    state = env.init()
 
     #Config 세팅
     NUM_EPOCHS = configs['epochs']
@@ -60,10 +60,11 @@ def train(flags, configs, sumoBinary, sumoConfig):
 
     while epoch < NUM_EPOCHS:
         traci.start(sumoCmd)
+        state = env.init()
         step = 0
         arrived_vehicles = 0
         while step < configs['EXP_CONFIGS']['max_step']:
-            agent.get_action(state)
+            action=agent.get_action(state)
             traci.simulationStep()  # agent.step안에 들어가야함
             next_state, reward = env.step(action)
             step += 1
