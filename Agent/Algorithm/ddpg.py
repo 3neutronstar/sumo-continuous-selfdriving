@@ -114,11 +114,11 @@ class DDPG():
             mu += noise
 
         mu = mu.clamp(1, -1)
-        return mu
+        return mu.view(1,1)
 
     def update(self, epoch):
         if len(self.experience_replay) <= self.configs['batch_size']:
-            return
+            return 0, 0
         transitions = self.experience_replay.sample(self.configs['batch_size'])
         batch = Transition(*zip(*transitions))
 

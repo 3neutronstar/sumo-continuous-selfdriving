@@ -29,7 +29,7 @@ from copy import deepcopy
 state_space = 8
 gen_agent_list=['agent_0']
 
-device = 'cpu'
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 action_size = 2 # 방향(좌/우) / 속도(가속/감속)
 
 
@@ -97,7 +97,7 @@ class Env():
         reward = torch.zeros(
             (self.num_agent, 1), dtype=torch.float, device=device)
         agent_reward = torch.zeros(
-            (1, 1), detype=torch.float, device=device)
+            (self.num_agent, 1), dtype=torch.float, device=device)
         #cum_reward = torch.like(reward) cumulative reward 필요한가?
         
         for idx, agent in enumerate(self.agent_list):           
@@ -136,7 +136,7 @@ class Env():
         #reward 생성
         reward = self.collect_reward()
         
-        return next_state, reward
+        return next_state, reward,self.num_agent
     
     #check if agent can change to right lane
     def changeLaneRight(self, agent):

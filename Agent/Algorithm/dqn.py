@@ -1,4 +1,5 @@
 import torch
+from torch._C import device
 import torch.nn as nn
 import torch.nn.functional as f
 import torch.optim as optim
@@ -59,7 +60,7 @@ class DQN():
                 q = self.behaviorQ(state)
                 action = torch.max(q, dim=1)[1]
         else:
-            action = torch.tensor([random.randint(-1, 1)])
+            action = torch.tensor([random.randint(-1, 1)],device=self.device)
         return action.view(1, 1)
 
     def save_replay(self, state, action, reward, next_state):
@@ -68,7 +69,7 @@ class DQN():
 
     def update(self, epoch):
         if len(self.experience_replay) < self.configs['batch_size']:
-            return
+            return 0
 
         transitions = self.experience_replay.sample(self.configs['batch_size'])
         batch = Transition(*zip(*transitions))

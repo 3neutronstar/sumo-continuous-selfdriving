@@ -64,10 +64,10 @@ def train(flags, configs, sumoBinary, sumoConfig):
 
         while step < configs['EXP_CONFIGS']['max_steps']:
             action = agent.get_action(state,num_agent)
-            next_state, reward,num_agent = env.step(action)
+            next_state, reward,num_agent = env.step(action,step)
             step += 1
             #arrived_vehicles += 해주는 과정 필요
-            agent.save_replay(state, action, reward, next_state)
+            agent.save_replay(state, action, reward, next_state,num_agent)
             agent.update(epoch)
             state = next_state
             total_reward += reward
