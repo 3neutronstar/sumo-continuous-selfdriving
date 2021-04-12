@@ -5,9 +5,9 @@ import torch.optim as optim
 from Agent.Algorithm.utils import ReplayMemory, Transition
 from Agent.Algorithm.random_process import OrnsteinUhlenbeckProcess
 from Agent.Algorithm.utils import hard_update, soft_update
+import copy
 
-
-class Actor(nn.modules):
+class Actor(nn.Module):
     def __init__(self, input_size, output_size, configs):
         super(Actor, self).__init__()
         self.configs = configs
@@ -33,7 +33,7 @@ class Actor(nn.modules):
         return nn.Sequential(*layers)
 
 
-class Critic(nn.modules):
+class Critic(nn.Module):
     def __init__(self, input_size, output_size, configs):
         super(Critic, self).__init__()
         self.configs = configs
@@ -51,19 +51,22 @@ class Critic(nn.modules):
     def _make_layers(self):
         layers = []
         fc_list = [self.input_size]+self.configs['fc']
-
+        import math
         for i, fc in enumerate(fc_list):
+            print(len(fc_list)/2)
+            if i == math.floor(len(fc_list)/2):
+                layers += [nn.Linear(fc+1,fc_list[i+1]),
+                           nn.ReLU(inplace=True)]
+                before_layers=copy.deepcopy(layers)
+                before_critic = nn.Sequential(*before_layers)
+                layers = []
             if fc_list[i] == fc_list[-1]:
                 layers += [nn.Linear(fc, self.output_size)]
                 after_critic = nn.Sequential(*layers)
                 break
-            if i+1 == len(fc_list)/2:
-                layers += [nn.Linear(fc+1,),
-                           nn.ReLU(inplace=True)]
-                before_critic = nn.Sequential(*layers)
-                layers = []
-            layers += [nn.Linear(fc),
-                       nn.ReLU(inplace=True)]
+            else:
+                layers += [nn.Linear(fc,fc_list[i+1]),
+                        nn.ReLU(inplace=True)]
         return before_critic, after_critic
 
 
@@ -73,9 +76,9 @@ class DDPG():
         self.device = torch.device(
             'cuda' if torch.cuda.is_available() else 'cpu')
         self.gamma = configs['gamma']
-        self.actor = Actor(input_size, output_size, configs)
+        self.actor = Actor(input_size, output_size, configs['actor'])
         self.actor.to(self.device)
-        self.actor_target = Actor(input_size, output_size, configs)
+        self.actor_target = Actor(input_size, output_size, configs['critic'])
         self.actor_target.to(self.device)
         self.actor_optim = optim.Adam(
             self.actor.parameters(), configs['actor']['lr'])
@@ -83,9 +86,9 @@ class DDPG():
             self.actor_optim, step_size=configs['actor']['lr_decaying_epoch'], gamma=configs['actor']['lr_decaying_rate'])
         hard_update(self.actor_target, self.actor)
 
-        self.critic = Critic(input_size, output_size, configs)
-        self.critic_target.to(self.device)
-        self.critic_target = Critic(input_size, output_size, configs)
+        self.critic = Critic(input_size, output_size, configs['critic'])
+        self.critic.to(self.device)
+        self.critic_target = Critic(input_size, output_size, configs['critic'])
         self.critic_target.to(self.device)
         self.critic_optim = optim.Adam(
             self.critic.parameters(), configs['critic']['lr'])
@@ -111,11 +114,11 @@ class DDPG():
             mu += noise
 
         mu = mu.clamp(1, -1)
-        return mu
+        return mu.view(1,1)
 
     def update(self, epoch):
         if len(self.experience_replay) <= self.configs['batch_size']:
-            return
+            return 0, 0
         transitions = self.experience_replay.sample(self.configs['batch_size'])
         batch = Transition(*zip(*transitions))
 

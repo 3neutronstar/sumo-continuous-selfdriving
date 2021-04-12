@@ -44,6 +44,10 @@ class GridAgent(BaseAgent):
         dqn_loss = self.dqn_model.update(epoch)
         ddpg_loss = self.ddpg_model.update(epoch)
 
-    def save_replay(self, state, action, reward, next_state):
-        self.dqn_model.save_replay(state, action, reward, next_state)
-        self.ddpg_model.save_replay(state, action, reward, next_state)
+    def save_replay(self, state, action, reward, next_state,num_agent):
+        if num_agent==0:
+            return
+        else:
+            self.dqn_model.save_replay(state, action, reward, next_state)
+            self.ddpg_model.save_replay(state, action, reward, next_state)
+            return

@@ -1,4 +1,3 @@
-from Network.cross import NET_CONFIGS
 import os
 import sys
 import argparse
@@ -21,11 +20,12 @@ def parse_args(args):
                         'train', 'simulate', 'test'])
 
     # 추가 옵션
-
     # choose road network
     parser.add_argument('--network', type=str)
     # display the monitor
     parser.add_argument('--disp', type=bool, default=False)
+    parser.add_argument('--start_epoch', type=int, default=0)
+    parser.add_argument('--epochs', type=int, default=100)
     # agent decision
     #parser.add_argument('--agent', type=str)
     # algorithm decision
@@ -38,12 +38,12 @@ def test(flags, configs, sumoBinary, sumoConfig):
     # 알고리즘 평가
     traci.start(sumoCmd)
     step = 0
-    while step < configs['EXP_CONFIGS']['max_step']:
+    while step < configs['EXP_CONFIGS']['max_steps']:
         traci.simulationStep()
         step += 1
 
 
-def train(flags, configs, sumoBinary, sumoConfig):
+def train(time_data, configs, sumoBinary, sumoConfig):
     sumoCmd = [sumoBinary, "-c", sumoConfig]
     # config 값 세팅하고, 지정된 알고리즘으로 트레이닝
     file_path = os.path.dirname(os.path.abspath(__file__))
@@ -52,25 +52,24 @@ def train(flags, configs, sumoBinary, sumoConfig):
 
     agent = MainAgent(file_path,configs).network
     # training data 경로 설정
-    writer = SummaryWriter(os.path.join(file_path, 'training_data'))
+    writer = SummaryWriter(os.path.join(file_path, 'training_data',time_data))
     #Config 세팅
-    NUM_EPOCHS = configs['epochs']
-    MAX_STEPS = configs['max_steps']
     epoch = 0
 
-    while epoch < NUM_EPOCHS:
+    for epoch in range(configs['EXP_CONFIGS']['start_epoch'],configs['EXP_CONFIGS']['epochs']):
         traci.start(sumoCmd)
         step = 0
         env = Env(configs)
-        state = env.init()
+        state,num_agent = env.init()
         total_reward = 0
         reward = 0
 
-        while step < configs['EXP_CONFIGS']['max_step']:
-            action = agent.get_action(state)
-            next_state, reward = env.step(action)
+        while step < configs['EXP_CONFIGS']['max_steps']:
+            action = agent.get_action(state,num_agent)
+            next_state, reward,num_agent = env.step(action,step)
             step += 1
-            agent.save_replay(state, action, reward, next_state)
+            #arrived_vehicles += 해주는 과정 필요
+            agent.save_replay(state, action, reward, next_state,num_agent)
             agent.update(epoch)
             state = next_state
             total_reward += reward
@@ -114,6 +113,8 @@ def main(args):
     # Argument 호출
     configs['network'] = flags.network.lower()
     configs['mode'] = flags.mode.lower()
+    configs['EXP_CONFIGS']['start_epoch']=flags.start_epoch#load용
+    configs['EXP_CONFIGS']['epochs']=flags.epochs
     #configs['agent'] = flags.agent.lower()
     # 어떤 네트워크인지 체크
     from Network.baseNetwork import mainNetwork
@@ -139,17 +140,17 @@ def main(args):
     # 모드 결정 및 실행
     if flags.mode.lower() == 'train':
         sumoConfig = os.path.join(
-            file_path, 'training_data', '{}_train.sumocfg')  # 중간 파일 경로 추가
-        train(flags, configs, sumoBinary, sumoConfig)
+            file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
+        train(time_data, configs, sumoBinary, sumoConfig)
 
     elif flags.mode.lower() == 'test':
-        sumoConfig = os.path.join(
-            file_path, 'training_data', '{}_test.sumocfg')  # 중간 파일 경로 추가
+        sumoConfig = os.path.join(#time인지 file_name인지 명시
+            file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
         test(flags, configs, sumoBinary, sumoConfig)
 
     else:  # simulate
         sumoConfig = os.path.join(
-            file_path, 'Net_data', '{}_simulate.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
+            file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
         simulate(flags, configs, sumoBinary, sumoConfig)
 
 

@@ -24,38 +24,47 @@ import torch
 import traci
 import time
 from copy import deepcopy
-from configs import EXP_CONFIGS
 
-#config로 이동할것
-state_space = 8
-agent_list = ['agent_0']
-device = 'cpu'
-action_size = 2 # 방향(좌/우) / 속도(가속/감속)
+
+ENV_CONFIGS = {
+    'state_space': 8,
+    'gen_agent_list': ['agent_0','agent_1','agent_2','agent_3'],
+    'action_size': 2 #방향(좌/우) / 속도(가속/감속)
+}
 
 
 class Env():
     #__init__에서 반영하는 변수는 추후 config.py로 이동할것
     def __init__(self, configs):
-        self.configs = configs
-        self.device = device
-        self.agent_list = agent_list
-        self.num_agent = len(agent_list)
+        configs['ENV_CONFIGS']=ENV_CONFIGS
+        self.env_configs = ENV_CONFIGS
+        self.agent_list = list()
+        self.gen_agent_list = self.env_configs['gen_agent_list']
+        self.num_agent = 0
+        self.state_space = self.env_configs['state_space']
+        self.device = torch.device(
+            'cuda' if torch.cuda.is_available() else 'cpu')
 
-        self.reward = torch.zeros((self.num_agent,1), dtype=torch.float, device=device)
-        self.cum_reward = torch.zeros_like(self.reward)
-        self.state_space = state_space
+        self.reward = torch.zeros((self.num_agent, 1), dtype=torch.float, device=self.device)
+
         self.observ_list = self.get_observ_list()
   
 
     def init(self):
-        self.collect_state()
+        state = self.collect_state()
+        return state,self.num_agent
     
     #agent 투입, 각 agent의 departure 간에 적절한 delay 삽입
     def add_agent(self, step):
-        if step >= 1:
-            for id in self.agent_list:
-                traci.vehicle.add(vehID=id, routeID='route_0', typeID='car', departLane='random')
-                time.sleep(0.2) 
+        if step == 1:
+            traci.vehicle.add(vehID=self.gen_agent_list[0], routeID='route_0', typeID='car', departLane='random')
+        if step == 50:
+            traci.vehicle.add(vehID=self.gen_agent_list[1], routeID='route_0', typeID='car', departLane='random')
+        elif step==200:
+            traci.vehicle.add(vehID=self.gen_agent_list[2], routeID='route_0', typeID='car', departLane='random')
+        elif step==250:
+            traci.vehicle.add(vehID=self.gen_agent_list[3], routeID='route_0', typeID='car', departLane='random')
+
 
 
     #agent의 생성과 제거를 판단
@@ -74,73 +83,66 @@ class Env():
     
 
     def collect_state(self):         
-        self.agent_list = agent_list
-        self.num_agent = len(self.agent_list)
-        
         next_state = torch.zeros(
-            (self.num_agent, self.state_space), dtype=torch.float, device=device)
+            (self.num_agent, self.state_space), dtype=torch.float, device=self.device)
         agent_state = torch.zeros(
-            (1,self.state_space), dtype=torch.float, device=device) #agent_state는 agent별 state를 나타냄
-        
+            (1, self.state_space), dtype=torch.float, device=self.device) #agent_state는 agent별 state를 나타냄
+
         for i, agent in enumerate(self.agent_list):
             for idx,observ in enumerate(self.observ_list):
-                agent_state[0, idx] = observ[idx](agent)
+                agent_state[0, idx] = observ(agent)
                 next_state[i,:] = next_state.clone().detach()
 
         return next_state
 
 
     def collect_reward(self):
-        self.agent_list = agent_list
-        self.num_agent = len(self.agent_list)
-        
         reward = torch.zeros(
-            (self.num_agent, 1), dtype=torch.float, device=device)
+            (self.num_agent, 1), dtype=torch.float, device=self.device)
         agent_reward = torch.zeros(
-            (1, 1), detype=torch.float, device=device)
+            (self.num_agent, 1), dtype=torch.float, device=self.device)
         #cum_reward = torch.like(reward) cumulative reward 필요한가?
         
         for idx, agent in enumerate(self.agent_list):           
             agent_reward[idx] = traci.vehicle.getSpeed(agent)
             reward = agent_reward.clone().detach()
-
-        #self.cum_reward += reward        
+    
         return reward      
    
     def step(self, action, step):
-        self.init()
+        if self.num_agent == 0:
+            pass
+            #action mapping
+        else:    
+            for idx,agent in enumerate(self.agent_list):
+                currentSpeed = traci.vehicle.getSpeed(agent)
+                acc = action[idx, 0]
+                traci.vehicle.setSpeed(agent, currentSpeed+acc)
+                
+                if action[idx, 1] == 1:
+                    self.actionLeftLane(agent)
+                elif action[idx, 1] == -1:
+                    self.actionRightLane(agent)
+                else:
+                    self.actionStayLane(agent)        
+        
         
         #agent 투입
-        self.add_agent(step)
-
-        #agent update부분
-        self.agent_update()        
-                
-        #action mapping
-        for idx,agent in enumerate(self.agent_list):
-            currentSpeed = traci.vehicle.getSpeed(agent)
-            acc = action[idx, 0]
-            traci.vehicle.setSpeed(agent, currentSpeed+acc)
-            
-            if action[idx, 1] == 1:
-                self.actionLeftLane(agent)
-            elif action[idx, 1] == -1:
-                self.actionRightLane(agent)
-            else:
-                self.actionStayLane(agent)
+        self.add_agent(step)               
 
         #action 적용
         traci.simulationStep()
 
         #agent의 생성이나 제거를 판단
         self.agent_update()
+        
         #next_state 생성
         next_state = self.collect_state()
         
         #reward 생성
         reward = self.collect_reward()
         
-        return next_state, reward
+        return next_state, reward,self.num_agent
     
     #check if agent can change to right lane
     def changeLaneRight(self, agent):
@@ -171,8 +173,8 @@ class Env():
     def get_observ_list(self):
         #observ = list()
         observ_list = [
-             self.ChangeLaneRight, #whether agent can make lane change to right
-             self.ChangeLaneLeft, #whether agent can make lane change to left
+             self.changeLaneRight, #whether agent can make lane change to right
+             self.changeLaneLeft, #whether agent can make lane change to left
              traci.vehicle.getSpeed, #current speed of agent
              self.leader, #distance between leading car
              self.follower, #distance between following car

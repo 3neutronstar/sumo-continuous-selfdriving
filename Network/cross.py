@@ -13,9 +13,10 @@ NET_CONFIGS = {
 
 class CrossNetwork(BaseNetwork):
     def __init__(self, file_path, file_name, configs):
-        self.net_configs = NET_CONFIGS
+        self.configs=configs
+        self.configs['NET_CONFIGS'] = NET_CONFIGS
         self.exp_configs = configs['EXP_CONFIGS']
-        super().__init__(file_path, file_name, self.configs)
+        super().__init__(file_path, file_name, configs)
 
     # define nodes
     def specify_node(self):
@@ -34,21 +35,21 @@ class CrossNetwork(BaseNetwork):
             {
             'id': 'n_U',
             'x': str('%.1f' % center),
-            'y': str('%.1f' % (self.net_configs['laneLength']))
+            'y': str('%.1f' % (self.configs['NET_CONFIGS']['laneLength']))
         },
             {
             'id': 'n_D',
             'x': str('%.1f' % center),
-            'y': str('%.1f' % -(self.net_configs['laneLength']))
+            'y': str('%.1f' % -(self.configs['NET_CONFIGS']['laneLength']))
         },
             {
             'id': 'n_R',
-            'x': str('%.1f' % (self.net_configs['laneLength'])),
+            'x': str('%.1f' % (self.configs['NET_CONFIGS']['laneLength'])),
             'y': str('%.1f' % center)
         },
             {
             'id': 'n_L',
-            'x': str('%.1f' % -(self.net_configs['laneLength'])),
+            'x': str('%.1f' % -(self.configs['NET_CONFIGS']['laneLength'])),
             'y': str('%.1f' % center)
         }]
 
@@ -67,14 +68,14 @@ class CrossNetwork(BaseNetwork):
                 'from': 'n_C',
                 'id': 'C_to_{}'.format(_),
                 'to': 'n_{}'.format(_),
-                'numLanes': str(self.net_configs['numLanes'])
+                'numLanes': str(self.configs['NET_CONFIGS']['numLanes'])
             }
             edges.append(edge_info)
             edge_info = {
                 'from': 'n_{}'.format(_),
                 'id': '{}_to_C'.format(_),
                 'to': 'n_C',
-                'numLanes': str(self.net_configs['numLanes'])
+                'numLanes': str(self.configs['NET_CONFIGS']['numLanes'])
             }
             edges.append(edge_info)
         return edges
@@ -91,16 +92,16 @@ class CrossNetwork(BaseNetwork):
                     destEdgeID = 'C_to_'+direction_list[3-i]
 
                     if destEdgeID[-1] == direction_list[1] or destEdgeID[-1] == direction_list[2]:
-                        vehsPerHours = '900'  # 수직 통행량 900
+                        vehsPerHours = '300'  # 수직 통행량 900
                     else:
-                        vehsPerHours = '1200'  # 수평 통행량 2000
+                        vehsPerHours = '400'  # 수평 통행량 2000
 
                     flows.append({
                         'from': edge['id'],
                         'to': destEdgeID,
                         'id': edge['from'],
-                        'begin': str(self.net_configs['flow_start']),
-                        'end': str(self.net_configs['flow_end']),
+                        'begin': str(self.configs['NET_CONFIGS']['flow_start']),
+                        'end': str(self.configs['NET_CONFIGS']['flow_end']),
                         'vehsPerHour': vehsPerHours,
                         'reroute': 'false',
                         'via': edge['id'] + ' ' + destEdgeID,
@@ -112,32 +113,32 @@ class CrossNetwork(BaseNetwork):
     # define traffic light
     def specify_traffic_light(self):
         traffic_lights = []
-        numLanes = self.net_configs['numLanes']
+        numLanes = self.configs['NET_CONFIGS']['numLanes']
         g = 'G'
         r = 'r'
         phase_set = [
-            {'duration': '37',  # 1
+            {'duration': '15',  # 1
                 'state': 'r{2}{1}gr{2}{3}rr{2}{1}gr{2}{3}r'.format(  # 위좌아래좌
                     g*numLanes, g, r*numLanes, r),
              },
             {'duration': '3',
                 'state': 'y'*(12+4*numLanes),
              },
-            {'duration': '37',  # 2
+            {'duration': '25',  # 2
                 'state': 'G{0}{3}rr{2}{3}rG{0}{3}rr{2}{3}r'.format(  # 위직아래직
                     g*numLanes, g, r*numLanes, r),  # current
              },
             {'duration': '3',
                 'state': 'y'*(12+4*numLanes),
              },
-            {'duration': '37',  # 1
+            {'duration': '15',  # 1
                 'state': 'r{2}{3}rr{2}{1}gr{2}{3}rr{2}{1}g'.format(  # 좌좌우좌
                     g*numLanes, g, r*numLanes, r),
              },
             {'duration': '3',
                 'state': 'y'*(12+4*numLanes),
              },
-            {'duration': '37',  # 1
+            {'duration': '25',  # 1
                 'state': 'r{2}{3}rG{0}{3}rr{2}{3}rG{0}{3}g'.format(  # 좌직우직
                     g*numLanes, g, r*numLanes, r),  # current
              },
@@ -173,9 +174,9 @@ class CrossNetwork(BaseNetwork):
 
 
 if __name__ == "__main__":
-    from configs import EXP_CONFIGS
+    from configs import DEFAULT_CONFIGS
     configs = dict()
-    configs['EXP_CONFIGS'] = EXP_CONFIGS
+    configs['EXP_CONFIGS'] = DEFAULT_CONFIGS
     configs['NET_CONFIGS'] = NET_CONFIGS
     a = CrossNetwork(configs)
     a.generate_cfg(True)
