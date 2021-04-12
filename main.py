@@ -69,7 +69,6 @@ def train(time_data, configs, sumoBinary, sumoConfig):
             next_state, reward, num_agent = env.step(action,step)
             step += 1
             #arrived_vehicles += 해주는 과정 필요
-            print(num_agent)
             agent.save_replay(state, action, reward, next_state, num_agent)
             agent.update(epoch)
             state = next_state
