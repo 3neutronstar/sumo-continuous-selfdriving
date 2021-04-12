@@ -61,14 +61,14 @@ class Env():
         #    idx,id=next(gen_list)
         #    traci.vehicle.add(vehId=id)
         
+
+    #agent의 생성과 제거를 판단
+    def agent_update(self):
         #생성된 agent 추가
         for id in traci.simulation.getLoadedIDList():
             if traci.vehicle.getTypeID(id)=='rl_agent':
                 self.agent_list.append(id)
                 self.num_agent+=1
-
-    #agent의 생성과 제거를 판단
-    def del_agent(self):
         #도착한 agent 제거
         for idx, agent in enumerate(self.agent_list):
             if agent in traci.simulation.getArrviedIDList():
@@ -128,7 +128,7 @@ class Env():
         traci.simulationStep()
 
         #agent의 생성이나 제거를 판단
-        self.del_agent()
+        self.agent_update()
         
         #next_state 생성
         next_state = self.collect_state()
