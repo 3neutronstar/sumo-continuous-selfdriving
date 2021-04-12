@@ -7,13 +7,13 @@ from Agent.Algorithm.utils import ReplayMemory, Transition
 from Agent.Algorithm.utils import hard_update, soft_update
 
 
-class QNetwork(nn.modules):
+class QNetwork(nn.Module):
     def __init__(self, input_size, output_size, configs):
+        self.configs = configs
         super(QNetwork, self).__init__()
         self.input_size = input_size
         self.output_size = output_size
         self.fc = self._make_layers()
-        self.configs = configs
 
     def forward(self, input):
         x = input
@@ -46,7 +46,7 @@ class DQN():
         self.experience_replay = ReplayMemory(
             configs['experience_replay_size'])
         self.criterion = nn.MSELoss()
-        self.optimizer = optim.Adam(self.behaviorQ.parameters(), configs)
+        self.optimizer = optim.Adam(self.behaviorQ.parameters(), lr=configs['lr'])
         self.epsilon = configs['epsilon']
         self.lr_scheduler = optim.lr_scheduler.StepLR(
             self.optimizer, configs['lr_decaying_epoch'], configs['lr_decaying_rate'])

@@ -24,11 +24,11 @@ import torch
 import traci
 import time
 from copy import deepcopy
-from configs import EXP_CONFIGS
 
 #config로 이동할것
 state_space = 8
-agent_list = ['agent_0']
+gen_agent_list=['agent_0']
+
 device = 'cpu'
 action_size = 2 # 방향(좌/우) / 속도(가속/감속)
 
@@ -38,8 +38,9 @@ class Env():
     def __init__(self, configs):
         self.configs = configs
         self.device = device
-        self.agent_list = agent_list
-        self.num_agent = len(agent_list)
+        self.agent_list = list()
+        self.num_agent = 0
+        self.gen_agent_list=gen_agent_list
 
         self.reward = torch.zeros((self.num_agent,1), dtype=torch.float, device=device)
         self.cum_reward = torch.zeros_like(self.reward)
@@ -54,32 +55,29 @@ class Env():
     #agent 투입, 각 agent의 departure 간에 적절한 delay 삽입
     def add_agent(self, step):
         if step >= 1:
-            for id in self.agent_list: # self.gen_agent_list= enumerate() <-iterator : next함수 사용가능
+            for id in self.gen_agent_list: # self.gen_agent_list= enumerate() <-iterator : next함수 사용가능
                 traci.vehicle.add(vehID=id, routeID='route_0', typeID='car', departLane='random')
         # if step%5==0:
         #    idx,id=next(gen_list)
         #    traci.vehicle.add(vehId=id)
-        
-
-
-    #agent의 생성과 제거를 판단
-    def agent_update(self):
-        #도착한 agent 제거
-        for idx, agent in enumerate(self.agent_list):
-            if agent in traci.simulation.getArrviedIDList():
-                self.agent_list.pop(idx) #agent_list에서 도착 agent 제거
-                self.num_agent-=1
         
         #생성된 agent 추가
         for id in traci.simulation.getLoadedIDList():
             if traci.vehicle.getTypeID(id)=='rl_agent':
                 self.agent_list.append(id)
                 self.num_agent+=1
+
+    #agent의 생성과 제거를 판단
+    def del_agent(self):
+        #도착한 agent 제거
+        for idx, agent in enumerate(self.agent_list):
+            if agent in traci.simulation.getArrviedIDList():
+                self.agent_list.pop(idx) #agent_list에서 도착 agent 제거
+                self.num_agent-=1
+        
     
 
     def collect_state(self):         
-        self.agent_list = agent_list
-        self.num_agent = len(self.agent_list)
         
         next_state = torch.zeros(
             (self.num_agent, self.state_space), dtype=torch.float, device=device)
@@ -87,16 +85,14 @@ class Env():
             (1,self.state_space), dtype=torch.float, device=device) #agent_state는 agent별 state를 나타냄
         
         for i, agent in enumerate(self.agent_list):
-            for idx,observ in enumerate(self.observ_list):
-                agent_state[0, idx] = observ[idx](agent)
+            for idx, observ in enumerate(self.observ_list):
+                agent_state[0, idx] = observ(agent)
                 next_state[i,:] = next_state.clone().detach()
 
-        return next_state
+        return next_state,self.num_agent
 
 
     def collect_reward(self):
-        self.agent_list = agent_list
-        self.num_agent = len(self.agent_list)
         
         reward = torch.zeros(
             (self.num_agent, 1), dtype=torch.float, device=device)
@@ -112,13 +108,6 @@ class Env():
         return reward      
    
     def step(self, action, step):
-        
-        #agent 투입
-        self.add_agent(step)
-
-        #agent update부분
-        self.agent_update()        
-                
         #action mapping
         for idx,agent in enumerate(self.agent_list):
             currentSpeed = traci.vehicle.getSpeed(agent)
@@ -131,12 +120,16 @@ class Env():
                 self.actionRightLane(agent)
             else:
                 self.actionStayLane(agent)
-
+        
+        #agent 투입
+        self.add_agent(step)   
+                
         #action 적용
         traci.simulationStep()
 
         #agent의 생성이나 제거를 판단
-        self.agent_update()
+        self.del_agent()
+        
         #next_state 생성
         next_state = self.collect_state()
         
@@ -174,8 +167,8 @@ class Env():
     def get_observ_list(self):
         #observ = list()
         observ_list = [
-             self.ChangeLaneRight, #whether agent can make lane change to right
-             self.ChangeLaneLeft, #whether agent can make lane change to left
+             self.changeLaneRight, #whether agent can make lane change to right
+             self.changeLaneLeft, #whether agent can make lane change to left
              traci.vehicle.getSpeed, #current speed of agent
              self.leader, #distance between leading car
              self.follower, #distance between following car

@@ -219,7 +219,7 @@ class BaseNetwork():
         indent(sumocfg)
         dump(sumocfg)
         tree = ET.ElementTree(sumocfg)
-        tree.write(os.path.join(self.current_Env_path, self.file_name+'_simulate.sumocfg'),
+        tree.write(os.path.join(self.current_Env_path, self.file_name+'.sumocfg'),
                    pretty_print=True, encoding='UTF-8', xml_declaration=True)
 
     def test_net(self):
