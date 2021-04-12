@@ -24,106 +24,106 @@ import torch
 import traci
 import time
 from copy import deepcopy
+from configs import EXP_CONFIGS
 
-#config로 이동할것
-state_space = 8
-gen_agent_list=['agent_0']
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-action_size = 2 # 방향(좌/우) / 속도(가속/감속)
+ENV_CONFIGS = {
+    'state_space': 8,
+    'gen_agent_list': ['agent_0'],
+    'action_size': 2 #방향(좌/우) / 속도(가속/감속)
+}
 
 
 class Env():
     #__init__에서 반영하는 변수는 추후 config.py로 이동할것
     def __init__(self, configs):
-        self.configs = configs
-        self.device = device
+        self.env_configs = ENV_CONFIGS
         self.agent_list = list()
+        self.gen_agent_list = self.env_configs['gen_agent_list']
         self.num_agent = 0
-        self.gen_agent_list=gen_agent_list
+        self.state_space = self.env_configs['state_space']
 
-        self.reward = torch.zeros((self.num_agent,1), dtype=torch.float, device=device)
-        self.cum_reward = torch.zeros_like(self.reward)
-        self.state_space = state_space
+        self.reward = torch.zeros((self.num_agent, 1), dtype=torch.float, device=self.device)
+
         self.observ_list = self.get_observ_list()
+        self.device = torch.device(
+            'cuda' if torch.cuda.is_available() else 'cpu')
   
 
     def init(self):
-        state=self.collect_state()
+        state = self.collect_state()
         return state
     
     #agent 투입, 각 agent의 departure 간에 적절한 delay 삽입
     def add_agent(self, step):
-        if step >= 1:
-            for id in self.gen_agent_list: # self.gen_agent_list= enumerate() <-iterator : next함수 사용가능
+        if step == 1:
+            for id in self.gen_agent_list:
                 traci.vehicle.add(vehID=id, routeID='route_0', typeID='car', departLane='random')
-        # if step%5==0:
-        #    idx,id=next(gen_list)
-        #    traci.vehicle.add(vehId=id)
-        
+
 
     #agent의 생성과 제거를 판단
     def agent_update(self):
-        #생성된 agent 추가
-        for id in traci.simulation.getLoadedIDList():
-            if traci.vehicle.getTypeID(id)=='rl_agent':
-                self.agent_list.append(id)
-                self.num_agent+=1
         #도착한 agent 제거
         for idx, agent in enumerate(self.agent_list):
             if agent in traci.simulation.getArrviedIDList():
                 self.agent_list.pop(idx) #agent_list에서 도착 agent 제거
                 self.num_agent-=1
         
+        #생성된 agent 추가
+        for id in traci.simulation.getLoadedIDList():
+            if traci.vehicle.getTypeID(id)=='rl_agent':
+                self.agent_list.append(id)
+                self.num_agent+=1
     
 
     def collect_state(self):         
-        
         next_state = torch.zeros(
-            (self.num_agent, self.state_space), dtype=torch.float, device=device)
+            (self.num_agent, self.state_space), dtype=torch.float, device=self.device)
         agent_state = torch.zeros(
-            (1,self.state_space), dtype=torch.float, device=device) #agent_state는 agent별 state를 나타냄
-        
+            (1, self.state_space), dtype=torch.float, device=self.device) #agent_state는 agent별 state를 나타냄
+
         for i, agent in enumerate(self.agent_list):
-            for idx, observ in enumerate(self.observ_list):
+            for idx,observ in enumerate(self.observ_list):
                 agent_state[0, idx] = observ(agent)
                 next_state[i,:] = next_state.clone().detach()
 
-        return next_state,self.num_agent
+        return next_state
 
 
     def collect_reward(self):
-        
         reward = torch.zeros(
-            (self.num_agent, 1), dtype=torch.float, device=device)
+            (self.num_agent, 1), dtype=torch.float, device=self.device)
         agent_reward = torch.zeros(
-            (self.num_agent, 1), dtype=torch.float, device=device)
+            (self.num_agent, 1), dtype=torch.float, device=self.device)
         #cum_reward = torch.like(reward) cumulative reward 필요한가?
         
-        for idx, agent in enumerate(self.agent_list):           
+        for idx, agent in enumerate(self.gen_agent_list):           
             agent_reward[idx] = traci.vehicle.getSpeed(agent)
             reward = agent_reward.clone().detach()
-
-        #self.cum_reward += reward        
+    
         return reward      
    
     def step(self, action, step):
-        #action mapping
-        for idx,agent in enumerate(self.agent_list):
-            currentSpeed = traci.vehicle.getSpeed(agent)
-            acc = action[idx, 0]
-            traci.vehicle.setSpeed(agent, currentSpeed+acc)
-            
-            if action[idx, 1] == 1:
-                self.actionLeftLane(agent)
-            elif action[idx, 1] == -1:
-                self.actionRightLane(agent)
-            else:
-                self.actionStayLane(agent)
+        if self.num_agent == 0:
+            pass
+            #action mapping
+        else:    
+            for idx,agent in enumerate(self.agent_list):
+                currentSpeed = traci.vehicle.getSpeed(agent)
+                acc = action[idx, 0]
+                traci.vehicle.setSpeed(agent, currentSpeed+acc)
+                
+                if action[idx, 1] == 1:
+                    self.actionLeftLane(agent)
+                elif action[idx, 1] == -1:
+                    self.actionRightLane(agent)
+                else:
+                    self.actionStayLane(agent)        
+        
         
         #agent 투입
-        self.add_agent(step)   
-                
+        self.add_agent(step)               
+
         #action 적용
         traci.simulationStep()
 
@@ -167,8 +167,8 @@ class Env():
     def get_observ_list(self):
         #observ = list()
         observ_list = [
-             self.changeLaneRight, #whether agent can make lane change to right
-             self.changeLaneLeft, #whether agent can make lane change to left
+             self.ChangeLaneRight, #whether agent can make lane change to right
+             self.ChangeLaneLeft, #whether agent can make lane change to left
              traci.vehicle.getSpeed, #current speed of agent
              self.leader, #distance between leading car
              self.follower, #distance between following car
