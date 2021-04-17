@@ -54,25 +54,13 @@ class Env():
         state = self.collect_state()
         return state,self.num_agent
     
-    #agent 투입, 각 agent의 departure 간에 적절한 delay 삽입
+    #gen_agent_list에 존재하는 agent를 50 timestep 단위로 투입후 agent_list에 추가
     def add_agent(self, step):
-        if step == 1:
-            traci.vehicle.add(vehID=self.gen_agent_list[0], routeID='route_0', typeID='rl_agent', departLane='random')
-            self.agent_list.append(self.gen_agent_list[0])
-            self.num_agent+=1
-        if step == 50:
-            traci.vehicle.add(vehID=self.gen_agent_list[1], routeID='route_0', typeID='rl_agent', departLane='random')
-            self.agent_list.append(self.gen_agent_list[1])
-            self.num_agent+=1
-        elif step==200:
-            traci.vehicle.add(vehID=self.gen_agent_list[2], routeID='route_0', typeID='rl_agent', departLane='random')
-            self.agent_list.append(self.gen_agent_list[2])
-            self.num_agent+=1
-        elif step==250:
-            traci.vehicle.add(vehID=self.gen_agent_list[3], routeID='route_0', typeID='rl_agent', departLane='random')
-            self.agent_list.append(self.gen_agent_list[3])
-            self.num_agent+=1
-
+        for idx, agent in enumerate(self.gen_agent_list):
+            if step == 50*idx:
+                traci.vehicle.add(vehID=agent, routeID='route_0', typeID='rl_agent', departLane='random')
+                self.agent_list.append(agent)
+                self.num_agent+=1
 
 
     #agent의 생성과 제거를 판단
@@ -198,3 +186,6 @@ class Env():
     #stay on current lane
     def actionStayLane(self, agent):
         traci.vehicle.changeLaneRelative(agent, 0, 0)
+
+    def vehicleDerection(self, agent):
+        traci.vehicle.getangle
