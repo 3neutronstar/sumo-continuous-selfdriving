@@ -89,7 +89,6 @@ class DQN():
         # reward_batch = torch.cat(torch.tensor(batch.reward, dim=0)
         reward_batch = torch.tensor(batch.reward)
         # Q(s_t, a) 계산 - 모델이 Q(s_t)를 계산하고, 취한 행동의 칼럼을 선택
-        print(action_batch[:, 1])
         state_action_values = self.behaviorQ(
             state_batch).gather(1, action_batch[:, 1].view(-1, 1).to(torch.int64))  # for 3D
         # state_action_values = self.behaviorQ(
@@ -110,8 +109,6 @@ class DQN():
             next_state_values * self.configs['gamma']) + reward_batch
 
         # loss 계산
-        print(state_action_values.size(),
-              expected_state_action_values.size(), "dqn")
         loss = self.criterion(state_action_values,
                               expected_state_action_values.unsqueeze(1))
         self.running_loss += loss

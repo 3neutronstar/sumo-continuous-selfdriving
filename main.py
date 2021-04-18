@@ -6,7 +6,7 @@ import time
 from configs import DEFAULT_CONFIGS
 from sumolib import checkBinary
 from torch.utils.tensorboard import SummaryWriter
-from utils import update_tensorBoard, save_params
+from utils import update_tensorBoard, save_params, load_params
 import traci.constants as tc
 import torch
 # 인자를 가져오는 함수
@@ -19,7 +19,7 @@ def parse_args(args):
 
     # 기본 옵션
     parser.add_argument('mode', type=str, choices=[
-                        'train', 'simulate', 'test'])
+                        'train', 'simulate', 'test', 'load_train'])
 
     # 추가 옵션
     # choose road network
@@ -28,54 +28,57 @@ def parse_args(args):
     parser.add_argument('--disp', type=bool, default=False)
     parser.add_argument('--start_epoch', type=int, default=0)
     parser.add_argument('--epochs', type=int, default=100)
-    # agent decision
+    # replay_option (test,load_train)
+    parser.add_argument('--time_data', type=str, default=None)
     #parser.add_argument('--agent', type=str)
     # algorithm decision
     #parser.add_argument('--alg', type=str, default='algorithm')
     return parser.parse_known_args(args)[0]
 
 
-def test(flags, configs, sumoBinary, sumoConfig):
+def test(time_data, configs, sumoBinary, sumoConfig):
     sumoCmd = [sumoBinary, "-c", sumoConfig]
     file_path = os.path.dirname(os.path.abspath(__file__))
     # 알고리즘 평가
     from Env.baseEnv import Env
     from Agent.baseAgent import MainAgent
 
-    agent = MainAgent(file_path, configs).network
-    save_params(agent,configs['time_data'])
-    #load_weight(flags.replay_name)
+    agent = MainAgent(file_path, time_data, configs).network
+    # load_weight(flags.replay_name)
 
-    #트레이닝에 필요한 파라미터??
+    # 트레이닝에 필요한 파라미터??
     MAX_STEP = configs['max_steps']
     NUM_AGENT = configs['num_agent']
-    
+
     with torch.no_grad():
         step = 0
         traci.start(sumoCmd)
         env = Env(configs)
 
-    #agent
+    # agent
     a = time.time()
     while step < MAX_STEP:
-        action = agent.get_action(state,num_agent)
-    
+        action = agent.get_action(state, num_agent)
 
 
 def train(time_data, configs, sumoBinary, sumoConfig):
-    #agent 체크
+    # agent 체크
     sumoCmd = [sumoBinary, "-c", sumoConfig]
     # config 값 세팅하고, 지정된 알고리즘으로 트레이닝
     file_path = os.path.dirname(os.path.abspath(__file__))
     from Agent.baseAgent import MainAgent
     from Env.baseEnv import Env
-    agent = MainAgent(file_path,configs).network
+    agent = MainAgent(file_path, time_data, configs).network
     # training data 경로 설정
     writer = SummaryWriter(os.path.join(file_path, 'training_data', time_data))
     # Config 세팅
     epoch = 0
-    
-    #saveparams여기 쯤 넣어주면 될듯, 하이퍼파라미터 저장
+
+    # saveparams여기 쯤 넣어주면 될듯, 하이퍼파라미터 저장
+    if configs['mode'] == 'train':
+        save_params(file_path, time_data, configs)
+    else:
+        agent.load_weight(file_path, time_data)
 
     for epoch in range(configs['EXP_CONFIGS']['start_epoch'], configs['EXP_CONFIGS']['epochs']):
         traci.start(sumoCmd)
@@ -126,25 +129,6 @@ def main(args):
     if os.path.exists(gen_training_data_path) == False:
         os.mkdir(gen_training_data_path)
 
-    # config 파일에서 데이터 가져오기
-    if flags.mode == 'test':
-        configs = load_params(file_path)
-    else:  # simulate or train
-        configs = DEFAULT_CONFIGS
-
-    # Argument 호출
-    configs['network'] = flags.network.lower()
-    configs['mode'] = flags.mode.lower()
-    configs['EXP_CONFIGS']['start_epoch']=flags.start_epoch#load용
-    configs['EXP_CONFIGS']['epochs']=flags.epochs
-    configs['time_data'] = time_data
-    #configs['agent'] = flags.agent.lower()
-    # 어떤 네트워크인지 체크
-    from Network.baseNetwork import mainNetwork
-    network = mainNetwork(file_path, configs).network
-    network.generate_cfg(True, configs['mode'])
-    # network.sumo_gui()
-
     # enviornment 체크
     if 'SUMO_HOME' in os.environ:
         tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
@@ -158,8 +142,28 @@ def main(args):
     else:
         sumoBinary = checkBinary('sumo')
 
+    # config 파일에서 데이터 가져오기
+    if flags.mode == 'test' or flags.mode == 'load_train':
+        configs = load_params(file_path, flags.time_data)
+        time_data = flags.time_data
+        # configs['mode'] == 'train'
+    else:  # simulate or train
+        configs = DEFAULT_CONFIGS
+        # Argument 호출
+        configs['network'] = flags.network.lower()
+        configs['mode'] = flags.mode.lower()
+        configs['time_data'] = time_data
+        #configs['agent'] = flags.agent.lower()
+        # 어떤 네트워크인지 체크
+        from Network.baseNetwork import mainNetwork
+        network = mainNetwork(file_path, configs).network
+        network.generate_cfg(True, configs['mode'])
+
+    configs['EXP_CONFIGS']['start_epoch'] = flags.start_epoch  # load용
+    configs['EXP_CONFIGS']['epochs'] = flags.epochs
+
     # 모드 결정 및 실행
-    if flags.mode.lower() == 'train':
+    if flags.mode.lower() == 'train' or flags.mode.lower() == 'load_train':
         sumoConfig = os.path.join(
             file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
         train(time_data, configs, sumoBinary, sumoConfig)

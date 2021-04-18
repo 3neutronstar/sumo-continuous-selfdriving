@@ -35,8 +35,9 @@ ENV_CONFIGS = {
 class Env():
     # __init__에서 반영하는 변수는 추후 config.py로 이동할것
     def __init__(self, configs):
-        configs['ENV_CONFIGS'] = ENV_CONFIGS
-        self.env_configs = ENV_CONFIGS
+        if configs['mode'] != 'load_train':
+            configs['ENV_CONFIGS'] = ENV_CONFIGS
+        self.env_configs = configs['ENV_CONFIGS']
         self.agent_list = list()
         self.gen_agent_list = self.env_configs['gen_agent_list']
         self.num_agent = 0
@@ -75,7 +76,6 @@ class Env():
             if agent in arrived_list:
                 self.agent_list.pop(idx)  # agent_list에서 도착 agent 제거
                 self.num_agent -= 1
-                print(self.num_agent)
 
     def collect_state(self):
         next_state = torch.zeros(

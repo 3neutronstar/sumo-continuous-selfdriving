@@ -2,22 +2,24 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as f
 import traci
+import os
 
 
 class MainAgent():
-    def __init__(self, file_path, configs):
+    def __init__(self, file_path, time_data, configs):
         self.configs = configs
         if configs['network'] == "cross":
             from Agent.crossAgent import CrossAgent
-            self.network = CrossAgent(file_path, configs)
+            self.network = CrossAgent(file_path, time_data, configs)
         elif configs['network'] == "grid":
             from Agent.gridAgent import GridAgent
-            self.network = GridAgent(file_path, configs)
+            self.network = GridAgent(file_path, time_data, configs)
 
 
 class BaseAgent():
-    def __init__(self, file_path, configs):
+    def __init__(self, file_path, time_data, configs):
         self.file_path = file_path
+        self.time_data = time_data
         self.action_size = configs['EXP_CONFIGS']['action_size']
         self.state_size = configs['EXP_CONFIGS']['state_space']
 
@@ -50,3 +52,33 @@ class BaseAgent():
         self.dqn_loss = 0
         self.ddpg_value_loss = 0
         self.ddpg_policy_loss = 0
+
+    def save_weight(self, epoch):
+        torch.save(self.dqn_model.behaviorQ.state_dict(), os.path.join(
+            self.file_path, 'training_data', self.time_data, 'behaviorDQN.pt'))
+        torch.save(self.dqn_model.targetQ.state_dict(), os.path.join(
+            self.file_path, 'training_data', self.time_data, 'targetDQN.pt'))
+
+        torch.save(self.ddpg_model.actor.state_dict(), os.path.join(
+            self.file_path, 'training_data', self.time_data, 'actor_DDPG.pt'))
+        torch.save(self.ddpg_model.actor_target.state_dict(), os.path.join(
+            self.file_path, 'training_data', self.time_data, 'actor_targetDDPG.pt'))
+        torch.save(self.ddpg_model.critic.state_dict(), os.path.join(
+            self.file_path, 'training_data', self.time_data, 'critic_DDPG.pt'))
+        torch.save(self.ddpg_model.critic_target.state_dict(), os.path.join(
+            self.file_path, 'training_data', self.time_data, 'critic_targetDDPG.pt'))
+
+    def load_weight(self, time_data):
+        self.dqn_model.behaviorQ.load_state_dict(torch.load(
+            os.path.join(self.file_path, 'training_data', time_data, 'behaviorDQN.pt')))
+        self.dqn_model.targetQ.load_state_dict(torch.load(
+            os.path.join(self.file_path, 'training_data', time_data, 'targetDQN.pt')))
+
+        self.ddpg_model.actor.load_state_dict(torch.load(
+            os.path.join(self.file_path, 'training_data', time_data, 'actor_DDPG.pt')))
+        self.ddpg_model.actor_target.load_state_dict(torch.load(
+            os.path.join(self.file_path, 'training_data', time_data, 'actor_targetDDPG.pt')))
+        self.ddpg_model.critic.load_state_dict(torch.load(
+            os.path.join(self.file_path, 'training_data', time_data, 'critic_DDPG.pt')))
+        self.ddpg_model.critic_target.load_state_dict(torch.load(
+            os.path.join(self.file_path, 'training_data', time_data, 'critic_targetDDPG.pt')))

@@ -30,9 +30,10 @@ AGENT_CONFIGS = {
 
 
 class CrossAgent(BaseAgent):
-    def __init__(self, file_path, configs):
-        configs['AGENT_CONFIGS'] = AGENT_CONFIGS
-        super(CrossAgent, self).__init__(file_path, configs)
+    def __init__(self, file_path, time_data, configs):
+        if configs['mode'] != 'load_train':
+            configs['AGENT_CONFIGS'] = AGENT_CONFIGS
+        super(CrossAgent, self).__init__(file_path, time_data, configs)
 
     def get_action(self, states, num_agent):
         actions = list()

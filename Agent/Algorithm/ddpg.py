@@ -41,7 +41,6 @@ class Critic(nn.Module):
         self.input_size = input_size
         self.output_size = output_size
         self.before_critic, self.after_critic = self._make_layers()
-        print(self)
 
     def forward(self, input, actions):
         x = input
@@ -100,7 +99,6 @@ class DDPG():
     def get_action(self, state):
         self.actor.eval()
         mu = self.actor(state.float())
-        self.actor.train()
         mu = mu.data
 
         if self.action_noise is not None:
@@ -114,6 +112,7 @@ class DDPG():
     def update(self, next_action, epoch):
         if len(self.experience_replay) <= self.configs['batch_size']:
             return 0, 0
+        self.actor.train()
         transitions = self.experience_replay.sample(self.configs['batch_size'])
         batch = Transition(*zip(*transitions))
 
@@ -137,10 +136,7 @@ class DDPG():
 
         # critic network update
         self.critic_optim.zero_grad()
-        print(state_batch.size(), action_batch.size())
         state_action_batch = self.critic(state_batch, action_batch)
-        # TODO
-        print(state_action_batch.size(), expected_values.size())
         value_loss = self.criterion(
             state_action_batch, expected_values.detach())
         value_loss.backward()
