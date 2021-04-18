@@ -6,9 +6,9 @@ import time
 from configs import DEFAULT_CONFIGS
 from sumolib import checkBinary
 from torch.utils.tensorboard import SummaryWriter
-from utils import update_tensorBoard
+from utils import update_tensorBoard, save_params
 import traci.constants as tc
-from Env.baseEnv import Env
+import torch
 # 인자를 가져오는 함수
 
 #
@@ -35,26 +35,45 @@ def parse_args(args):
 
 def test(flags, configs, sumoBinary, sumoConfig):
     sumoCmd = [sumoBinary, "-c", sumoConfig]
+    file_path = os.path.dirname(os.path.abspath(__file__))
     # 알고리즘 평가
-    traci.start(sumoCmd)
-    step = 0
-    while step < configs['EXP_CONFIGS']['max_steps']:
-        traci.simulationStep()
-        step += 1
+    from Env.baseEnv import Env
+    from Agent.baseAgent import MainAgent
+
+    agent = MainAgent(file_path, configs).network
+    save_params(agent,configs['time_data'])
+    #load_weight(flags.replay_name)
+
+    #트레이닝에 필요한 파라미터??
+    MAX_STEP = configs['max_steps']
+    NUM_AGENT = configs['num_agent']
+    
+    with torch.no_grad():
+        step = 0
+        traci.start(sumoCmd)
+        env = Env(configs)
+
+    #agent
+    a = time.time()
+    while step < MAX_STEP:
+        action = agent.get_action(state,num_agent)
+    
 
 
 def train(time_data, configs, sumoBinary, sumoConfig):
+    #agent 체크
     sumoCmd = [sumoBinary, "-c", sumoConfig]
     # config 값 세팅하고, 지정된 알고리즘으로 트레이닝
     file_path = os.path.dirname(os.path.abspath(__file__))
-    #agent 체크
     from Agent.baseAgent import MainAgent
-
+    from Env.baseEnv import Env
     agent = MainAgent(file_path,configs).network
     # training data 경로 설정
     writer = SummaryWriter(os.path.join(file_path, 'training_data',time_data))
     #Config 세팅
     epoch = 0
+    
+    #saveparams여기 쯤 넣어주면 될듯, 하이퍼파라미터 저장
 
     for epoch in range(configs['EXP_CONFIGS']['start_epoch'],configs['EXP_CONFIGS']['epochs']):
         traci.start(sumoCmd)
@@ -115,6 +134,7 @@ def main(args):
     configs['mode'] = flags.mode.lower()
     configs['EXP_CONFIGS']['start_epoch']=flags.start_epoch#load용
     configs['EXP_CONFIGS']['epochs']=flags.epochs
+    configs['time_data'] = time_data
     #configs['agent'] = flags.agent.lower()
     # 어떤 네트워크인지 체크
     from Network.baseNetwork import mainNetwork
