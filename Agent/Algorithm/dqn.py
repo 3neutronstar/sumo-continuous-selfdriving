@@ -15,6 +15,7 @@ class QNetwork(nn.Module):
         self.input_size = input_size
         self.output_size = output_size
         self.fc = self._make_layers()
+        print(self)
 
     def forward(self, input):
         x = input
@@ -47,13 +48,13 @@ class DQN():
         self.experience_replay = ReplayMemory(
             configs['experience_replay_size'])
         self.criterion = nn.MSELoss()
-        self.optimizer = optim.Adam(self.behaviorQ.parameters(), lr=configs['lr'])
+        self.optimizer = optim.Adam(
+            self.behaviorQ.parameters(), lr=configs['lr'])
         self.epsilon = configs['epsilon']
         self.lr_scheduler = optim.lr_scheduler.StepLR(
             self.optimizer, configs['lr_decaying_epoch'], configs['lr_decaying_rate'])
         self.epsilon_decaying_rate = configs['epsilon_decaying_rate']
         self.final_epsilon = configs['epsilon_final']
-
 
     def get_action(self, state):
         if random.random() > self.epsilon:  # epsilon greedy
@@ -61,7 +62,7 @@ class DQN():
                 q = self.behaviorQ(state)
                 action = torch.max(q, dim=1)[1]
         else:
-            action = torch.tensor([random.randint(-1, 1)],device=self.device)
+            action = torch.tensor([random.randint(-1, 1)], device=self.device)
         return action.view(1, 1)
 
     def save_replay(self, state, action, reward, next_state):
