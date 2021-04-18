@@ -12,6 +12,8 @@ from Env.baseEnv import Env
 # 인자를 가져오는 함수
 
 #
+
+
 def parse_args(args):
     parser = argparse.ArgumentParser()
 
@@ -21,7 +23,7 @@ def parse_args(args):
 
     # 추가 옵션
     # choose road network
-    parser.add_argument('--network', type=str)
+    parser.add_argument('--network', type=str, default='cross')
     # display the monitor
     parser.add_argument('--disp', type=bool, default=False)
     parser.add_argument('--start_epoch', type=int, default=0)
@@ -47,39 +49,40 @@ def train(time_data, configs, sumoBinary, sumoConfig):
     sumoCmd = [sumoBinary, "-c", sumoConfig]
     # config 값 세팅하고, 지정된 알고리즘으로 트레이닝
     file_path = os.path.dirname(os.path.abspath(__file__))
-    #agent 체크
+    # agent 체크
     from Agent.baseAgent import MainAgent
 
-    agent = MainAgent(file_path,configs).network
+    agent = MainAgent(file_path, configs).network
     # training data 경로 설정
-    writer = SummaryWriter(os.path.join(file_path, 'training_data',time_data))
-    #Config 세팅
+    writer = SummaryWriter(os.path.join(file_path, 'training_data', time_data))
+    # Config 세팅
     epoch = 0
 
-    for epoch in range(configs['EXP_CONFIGS']['start_epoch'],configs['EXP_CONFIGS']['epochs']):
+    for epoch in range(configs['EXP_CONFIGS']['start_epoch'], configs['EXP_CONFIGS']['epochs']):
         traci.start(sumoCmd)
         step = 0
         env = Env(configs)
-        state,num_agent = env.init()
+        state, num_agent = env.init()
         total_reward = 0
         reward = 0
 
         while step < configs['EXP_CONFIGS']['max_steps']:
-            action = agent.get_action(state,num_agent)
-            next_state, reward, num_agent = env.step(action,step)
+            action = agent.get_action(state, num_agent)
+            next_state, reward, num_agent = env.step(action, step)
             step += 1
-            #arrived_vehicles += 해주는 과정 필요
+            # arrived_vehicles += 해주는 과정 필요
             agent.save_replay(state, action, reward, next_state, num_agent)
             agent.update(epoch)
             state = next_state
-            total_reward += reward
+            total_reward += reward.sum()
 
         traci.close()
         epoch += 1
         agent.hyperparams_update()
-        #Tensorboard 가져오기 
+        # Tensorboard 가져오기
         update_tensorBoard(writer, agent, env, epoch, configs)
     writer.close()
+
 
 def simulate(flags, configs, sumoBinary, sumoConfig):
     sumoCmd = [sumoBinary, "-c", sumoConfig]
@@ -113,16 +116,14 @@ def main(args):
     # Argument 호출
     configs['network'] = flags.network.lower()
     configs['mode'] = flags.mode.lower()
-    configs['EXP_CONFIGS']['start_epoch']=flags.start_epoch#load용
-    configs['EXP_CONFIGS']['epochs']=flags.epochs
+    configs['EXP_CONFIGS']['start_epoch'] = flags.start_epoch  # load용
+    configs['EXP_CONFIGS']['epochs'] = flags.epochs
     #configs['agent'] = flags.agent.lower()
     # 어떤 네트워크인지 체크
     from Network.baseNetwork import mainNetwork
     network = mainNetwork(file_path, configs).network
     network.generate_cfg(True, configs['mode'])
     # network.sumo_gui()
-
-
 
     # enviornment 체크
     if 'SUMO_HOME' in os.environ:
@@ -144,7 +145,7 @@ def main(args):
         train(time_data, configs, sumoBinary, sumoConfig)
 
     elif flags.mode.lower() == 'test':
-        sumoConfig = os.path.join(#time인지 file_name인지 명시
+        sumoConfig = os.path.join(  # time인지 file_name인지 명시
             file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
         test(flags, configs, sumoBinary, sumoConfig)
 

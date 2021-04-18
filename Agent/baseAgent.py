@@ -23,15 +23,15 @@ class BaseAgent():
 
         from Agent.Algorithm.dqn import DQN
         from Agent.Algorithm.ddpg import DDPG
-        
+
         self.dqn_model = DQN(
-            self.state_size, self.action_size, configs['AGENT_CONFIGS']['dqn'])
+            self.state_size, configs['AGENT_CONFIGS']['dqn']['action_space'], configs['AGENT_CONFIGS']['dqn'])
         self.ddpg_model = DDPG(
-            self.state_size+1, self.action_size, configs['AGENT_CONFIGS']['ddpg'])
-        
-        self.dqn_loss=0
-        self.ddpg_value_loss=0
-        self.ddpg_policy_loss=0
+            self.state_size+1, 1, configs['AGENT_CONFIGS']['ddpg'])
+
+        self.dqn_loss = 0
+        self.ddpg_value_loss = 0
+        self.ddpg_policy_loss = 0
 
     def get_action(self, state, num_agent):
         raise NotImplementedError
@@ -47,6 +47,6 @@ class BaseAgent():
             'ddpg/actor_lr', self.ddpg_model.actor_optim.param_groups[0]['lr'], epoch)
         writer.add_scalar(
             'ddpg/critic_lr', self.ddpg_model.actor_optim.param_groups[0]['lr'], epoch)
-        self.dqn_loss=0
-        self.ddpg_value_loss=0
-        self.ddpg_policy_loss=0
+        self.dqn_loss = 0
+        self.ddpg_value_loss = 0
+        self.ddpg_policy_loss = 0

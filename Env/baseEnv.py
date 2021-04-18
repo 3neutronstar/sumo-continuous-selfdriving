@@ -86,7 +86,7 @@ class Env():
         for i, agent in enumerate(self.agent_list):
             for idx, observ in enumerate(self.observ_list):
                 agent_state[0, idx] = observ(agent)
-                next_state[i, :] = next_state.clone().detach()
+                next_state[i, :] = agent_state.clone().detach()
 
         return next_state
 
@@ -111,9 +111,9 @@ class Env():
                 acc = action[idx, 0]
                 traci.vehicle.setSpeed(agent, currentSpeed+acc)
 
-                if action[idx, 1] == 1:
+                if (action[idx, 1]-1) == 1:
                     self.actionLeftLane(agent)
-                elif action[idx, 1] == -1:
+                elif (action[idx, 1]-1) == -1:
                     self.actionRightLane(agent)
                 else:
                     self.actionStayLane(agent)

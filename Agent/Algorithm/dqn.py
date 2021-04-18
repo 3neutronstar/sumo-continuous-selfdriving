@@ -15,7 +15,6 @@ class QNetwork(nn.Module):
         self.input_size = input_size
         self.output_size = output_size
         self.fc = self._make_layers()
-        print(self)
 
     def forward(self, input):
         x = input
@@ -56,22 +55,24 @@ class DQN():
         self.epsilon_decaying_rate = configs['epsilon_decaying_rate']
         self.final_epsilon = configs['epsilon_final']
 
+        self.running_loss = 0
+
     def get_action(self, state):
         if random.random() > self.epsilon:  # epsilon greedy
             with torch.no_grad():
                 q = self.behaviorQ(state)
                 action = torch.max(q, dim=1)[1]
         else:
-            action = torch.tensor([random.randint(-1, 1)], device=self.device)
+            action = torch.tensor([random.randint(0, 2)], device=self.device)
         return action.view(1, 1)
 
     def save_replay(self, state, action, reward, next_state):
         self.experience_replay.push(
-            state, action, reward, next_state)
+            state, action, reward, next_state)  # 0 index인 이유는 ddpg와 섞이기 때문
 
     def update(self, epoch):
         if len(self.experience_replay) < self.configs['batch_size']:
-            return 0
+            return None, 0
 
         transitions = self.experience_replay.sample(self.configs['batch_size'])
         batch = Transition(*zip(*transitions))
@@ -82,15 +83,15 @@ class DQN():
 
         non_final_next_states = torch.cat([s for s in batch.next_state
                                            if s is not None], dim=0)
-        state_batch = torch.cat(batch.state)
-        action_batch = torch.cat(batch.action, dim=0)  # 안쓰지만 배치함
+        state_batch = torch.cat(batch.state, dim=0)
+        action_batch = torch.cat(batch.action, dim=0)
 
         # reward_batch = torch.cat(torch.tensor(batch.reward, dim=0)
         reward_batch = torch.tensor(batch.reward)
         # Q(s_t, a) 계산 - 모델이 Q(s_t)를 계산하고, 취한 행동의 칼럼을 선택
-
+        print(action_batch[:, 1])
         state_action_values = self.behaviorQ(
-            state_batch).gather(1, action_batch)  # for 3D
+            state_batch).gather(1, action_batch[:, 1].view(-1, 1).to(torch.int64))  # for 3D
         # state_action_values = self.behaviorQ(
         #     state_batch)
         # .max(1)[0].clone().float().unsqueeze(1)
@@ -98,15 +99,19 @@ class DQN():
         # 모든 다음 상태를 위한 V(s_{t+1}) 계산
         next_state_values = torch.zeros(
             self.configs['batch_size'], device=self.device, dtype=torch.float)
-
-        next_state_values[non_final_mask] = self.targetQNetwork(
-            non_final_next_states).max(1)[0].detach()  # .to(self.device)  # 자신의 Q value 중에서max인 value를 불러옴
+        tmp = self.targetQ(
+            non_final_next_states).detach().max(1)
+        # next_state_values[non_final_mask] = self.targetQ(non_final_next_states).max(1)[0].detach()  # .to(self.device)  # 자신의 Q value 중에서max인 value를 불러옴
+        next_state_values[non_final_mask], next_action = tmp[0], tmp[1].view(
+            -1, 1)
 
         # 기대 Q 값 계산
         expected_state_action_values = (
             next_state_values * self.configs['gamma']) + reward_batch
 
         # loss 계산
+        print(state_action_values.size(),
+              expected_state_action_values.size(), "dqn")
         loss = self.criterion(state_action_values,
                               expected_state_action_values.unsqueeze(1))
         self.running_loss += loss
@@ -122,7 +127,7 @@ class DQN():
         else:
             if epoch % self.configs['target_update_period'] == 0:
                 hard_update(self.targetQ, self.behaviorQ)
-        return loss.detach().clone()
+        return next_action, loss.detach().clone()
 
     def hyperparams_update(self):
         self.lr_scheduler.step()
