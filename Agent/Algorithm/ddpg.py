@@ -7,6 +7,7 @@ from Agent.Algorithm.random_process import OrnsteinUhlenbeckProcess
 from Agent.Algorithm.utils import hard_update, soft_update
 import copy
 
+
 class Actor(nn.Module):
     def __init__(self, input_size, output_size, configs):
         super(Actor, self).__init__()
@@ -40,6 +41,7 @@ class Critic(nn.Module):
         self.input_size = input_size
         self.output_size = output_size
         self.before_critic, self.after_critic = self._make_layers()
+        print(self)
 
     def forward(self, input, actions):
         x = input
@@ -49,24 +51,14 @@ class Critic(nn.Module):
         return x
 
     def _make_layers(self):
-        layers = []
-        fc_list = [self.input_size]+self.configs['fc']
-        import math
-        for i, fc in enumerate(fc_list):
-            print(len(fc_list)/2)
-            if i == math.floor(len(fc_list)/2):
-                layers += [nn.Linear(fc+1,fc_list[i+1]),
-                           nn.ReLU(inplace=True)]
-                before_layers=copy.deepcopy(layers)
-                before_critic = nn.Sequential(*before_layers)
-                layers = []
-            if fc_list[i] == fc_list[-1]:
-                layers += [nn.Linear(fc, self.output_size)]
-                after_critic = nn.Sequential(*layers)
-                break
-            else:
-                layers += [nn.Linear(fc,fc_list[i+1]),
-                        nn.ReLU(inplace=True)]
+        before_critic = nn.Sequential(nn.Linear(self.input_size, self.configs['fc'][0]),
+                                      nn.ReLU(inplace=True),
+                                      nn.Linear(
+                                          self.configs['fc'][0], self.configs['fc'][1]),
+                                      nn.ReLU())
+        after_critic = nn.Sequential(nn.Linear(self.configs['fc'][1]+1, self.configs['fc'][2]),
+                                     nn.ReLU(inplace=True), nn.Linear(self.configs['fc'][2], 1))
+
         return before_critic, after_critic
 
 
@@ -102,6 +94,9 @@ class DDPG():
             size=output_size, theta=configs['ou']['theta'], mu=configs['ou']['mu'], sigma=configs['ou']['sigma'])
         self.criterion = nn.MSELoss()
 
+        self.action_top = self.configs['action_space'][1]
+        self.action_down = self.configs['action_space'][0]
+
     def get_action(self, state):
         self.actor.eval()
         mu = self.actor(state.float())
@@ -113,10 +108,10 @@ class DDPG():
                 self.device)
             mu += noise
 
-        mu = mu.clamp(1, -1)
+        mu = mu.clamp(self.action_top, self.action_down)
         return mu
 
-    def update(self, epoch):
+    def update(self, next_action, epoch):
         if len(self.experience_replay) <= self.configs['batch_size']:
             return 0, 0
         transitions = self.experience_replay.sample(self.configs['batch_size'])
@@ -127,6 +122,9 @@ class DDPG():
         reward_batch = torch.cat(batch.reward).to(self.device)
         next_state_batch = torch.cat(
             batch.next_state).to(self.device)
+        state_batch = torch.cat((state_batch, action_batch), dim=1)
+        next_state_batch = torch.cat(
+            (next_state_batch, next_action), dim=1)
 
         # get action and the state value from each target
         next_action_batch = self.actor_target(next_state_batch)
@@ -139,8 +137,11 @@ class DDPG():
 
         # critic network update
         self.critic_optim.zero_grad()
+        print(state_batch.size(), action_batch.size())
         state_action_batch = self.critic(state_batch, action_batch)
-        value_loss = self.critierion(
+        # TODO
+        print(state_action_batch.size(), expected_values.size())
+        value_loss = self.criterion(
             state_action_batch, expected_values.detach())
         value_loss.backward()
         self.critic_optim.step()
@@ -153,13 +154,17 @@ class DDPG():
         self.actor_optim.step()
 
         # update target
-        soft_update(self.actor_target, self.actor,self.configs['actor']['tau'])
-        soft_update(self.critic_target, self.critic,self.configs['critic']['tau'])
+        soft_update(self.actor_target, self.actor,
+                    self.configs['actor']['tau'])
+        soft_update(self.critic_target, self.critic,
+                    self.configs['critic']['tau'])
 
         return value_loss.item(), policy_loss.item()
 
     def save_replay(self, state, action, reward, next_state):
-        self.experience_replay.push(state, action, reward, next_state)
+        # 0 index인 이유는 dqn과 섞이기 때문
+        self.experience_replay.push(
+            state, action[:, 0].view(1, -1), reward, next_state)
 
     def hyperparams_update(self):
         self.actor_lr_scheduler.step()
