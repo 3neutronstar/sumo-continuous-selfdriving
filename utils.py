@@ -9,6 +9,7 @@ def update_tensorBoard(writer, agent, env, epoch, configs):
     # env.update_tensorBoard   Reward
     writer.add_scalar('episode/reward', env.reward.sum(),
                       configs['EXP_CONFIGS']['max_steps'] * epoch)
+    env.reward = 0
 
 
 def save_params(file_path, time_data, configs):
