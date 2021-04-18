@@ -105,8 +105,7 @@ class DDPG():
             noise = torch.Tensor(self.action_noise.sample()).to(
                 self.device)
             mu += noise
-
-        mu = mu.clamp(self.action_top, self.action_down)
+        mu = mu.clamp(self.action_down, self.action_top)
         return mu
 
     def update(self, next_action, epoch):
@@ -158,6 +157,7 @@ class DDPG():
         return value_loss.item(), policy_loss.item()
 
     def save_replay(self, state, action, reward, next_state):
+        print(state, action, reward, next_state)
         # 0 index인 이유는 dqn과 섞이기 때문
         self.experience_replay.push(
             state, action[:, 0].view(1, -1), reward, next_state)

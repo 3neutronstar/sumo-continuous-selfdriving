@@ -3,8 +3,8 @@ import torch
 
 AGENT_CONFIGS = {
     'ddpg': {
-        'actor': {'fc': [100, 150, 200], 'lr': 1e-4, 'lr_decaying_epoch': 50, 'lr_decaying_rate': 0.8, 'tau': 0.99},
-        'critic': {'fc': [100, 150, 200], 'lr': 1e-4, 'lr_decaying_epoch': 50, 'lr_decaying_rate': 0.8, 'tau': 0.99},
+        'actor': {'fc': [50, 100, 50], 'lr': 1e-4, 'lr_decaying_epoch': 50, 'lr_decaying_rate': 0.8, 'tau': 0.99},
+        'critic': {'fc': [50, 100, 50], 'lr': 1e-4, 'lr_decaying_epoch': 50, 'lr_decaying_rate': 0.8, 'tau': 0.99},
         'experience_replay_size': 1e5,
         'batch_size': 32,
         'ou': {'theta': 0.15, 'sigma': 0.2, 'mu': 0.0},
@@ -12,7 +12,7 @@ AGENT_CONFIGS = {
         'action_space': [-1, 1],
     },
     'dqn': {
-        'fc': [400, 300],
+        'fc': [200, 100],
         'epsilon': 0.9,
         'epsilon_decaying_rate': 0.99,
         'epsilon_final': 0.1,
