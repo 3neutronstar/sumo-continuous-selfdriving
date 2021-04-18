@@ -104,12 +104,23 @@ class Env():
             reward = agent_reward.clone().detach()
         return reward
 
+    def collect_penalty(self):
+        penalty = torch.zeros(
+            (self.num_agent, 1), dtype=torch.float, device=self.device)
+        agent_penalty = torch.zeros(
+            (self.num_agent, 1), dtype=torch.float, device=self.device)
+        # for idx, agent in enumerate(self.agent_list):
+        #     # traci.vehicle.
+        #     print("no")
+        return penalty
+
     def step(self, action, step):
         # action mapping
         if self.num_agent != 0:
             for idx, agent in enumerate(self.agent_list):
                 currentSpeed = traci.vehicle.getSpeed(agent)
                 acc = action[idx, 0]
+                print(acc)
                 traci.vehicle.setSpeed(agent, currentSpeed+acc)
 
                 self.changeLaneAction(agent, action[idx, 1])
@@ -128,9 +139,11 @@ class Env():
 
         # reward 생성
         reward = self.collect_reward()
-        self.reward += reward.sum()
+        # penalty 생성
+        penalty = self.collect_penalty()
+        self.reward += (reward.sum()-penalty.sum())
 
-        return next_state, reward, self.num_agent
+        return next_state, reward-penalty, self.num_agent
 
     # check if agent can change to right lane
     def changeLaneRight(self, agent):
