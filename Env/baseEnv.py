@@ -181,7 +181,7 @@ class Env():
             self.follower,  # distance between following car
             traci.vehicle.getLaneIndex,  # index of current lane
             traci.vehicle.getRouteIndex,  # index of current edge
-            #  0 #for 내 차량이 갈 방향
+            #self.get_direction  #for 내 차량이 갈 방향
         ]
         return observ_list
 
@@ -205,5 +205,81 @@ class Env():
         elif laneChangeAction-1 == 1:  # straight
             traci.vehicle.changeLaneRelative(agent, 0, 0)
 
-    def vehicleDirection(self, agent):
-        traci.vehicle.getangle
+    
+    #direction은 [current edge]-[surrounding edge]-[probability]의 순으로 구성된 중첩 dictionary
+    #junction_edges는 [junction(node)_id]-[surrounding edge]의 순으로 구성된 dictionary
+    def get_direction(self, agent):
+        junction_edges = get_junction_from_net_xml() #dict
+        direction = dict()
+        direction_key_sorted = list()
+
+        cur_edge = traci.vehicle.getRoadID(agent)
+        for index in junction_edges.keys():
+            if cur_edge in junction_edges[index] #index는 junction_edges의 key가 되는 node 이름
+                cur_node = index 
+                direction[cur_edge] = junction_edges[cur_node] #juction을 이루는 node들
+                
+                direction_key_list = direction[cur_edge]
+                for i in range(len(direction_key_list)):
+                    if direction_key_list[i] = cur_edge:
+                        calib_val = i 
+                    if i-calib_val >= 0:
+                        direction_key_sorted[i] = direction_key_list[i-calib_val] 
+                    else:
+                        direction_key_sorted[i] = direction_key_list[i+calib_val] #cur_edge가 [0]번째가 되도록 sort
+                
+                for idx, sur_edge in enumerate(direction_key_sorted[cur_edge]):
+                    num_edges = len(direction[cur_edge])
+                    direction[cur_edge][sur_edge] = (idx / num_edges)
+            
+                    next_edge = get_next_edge()
+                    next_edge_val = direction[cur_edge][next_edge]
+        
+        return next_edge_val
+
+
+    #map 내에 존재하는 모든 junction들에 대해 node_id를 key로, node를 둘러싼 edge를 값으로 갖는 딕셔너리를 반환
+    def get_junction_from_net_xml(self):
+        add_file_path = os.path.join(
+            self.configs['current_path'], 'Network', self.configs['load_file_name']+'.net.xml')
+        junction_edge = list()
+
+        net_tree = parse(self.net_file_path)
+        junctions = net_tree.findall('junction') #string
+        junction_edge_dict = dict()
+        
+        for junction in junctions:
+            if junction.attrib['type'] == "traffic_light": #map 밖으로 향하는 junction은 배제하고
+                junction_id = junction.attrib['id'] #junction의 id 저장
+                
+                incLanes = junction.attrib['incLanes'] #incLanes의 긴 string에서
+                incLanes = incLanes.split() #space 단위로 구성 edge를 split 후 리스트에 저장
+            
+                for edge in incLanes:
+                    edge = edge[:-2] #끝부분 lane number 요소 제거하고
+                    junction_edge.append(edge)
+
+                junction_edge = list(dict.fromkeys(junction_edge))
+
+                junction_edge_dict[junction_id] = junction_edge
+        
+        return junction_edge_dict
+
+
+    #역전된 next_edge를 반환(junction을 이루는 edge는 모두 중심을 향하므로)
+    def get_next_edge(self, agent):
+        route = traci.vehicle.getRoute(agent):
+        cur_edge = traci.vehicle.getRoadID(agent)
+        
+        for index in route:
+            if route[index] == cur_edge:
+                next_edge = route[index+1]
+                
+                from_edge = next_edge.split('to')[0]
+                to_edge = next_edge.split('to')[1]
+                next_edge_rev = "{} to {}".format(to_edge, from_edge)            
+                
+                if cur_edge == route[len(route)]: #cur_edge가 route의 마지막인 경우 None을 반환
+                    next_edge_rev = None
+        
+        return next_edge_rev    
