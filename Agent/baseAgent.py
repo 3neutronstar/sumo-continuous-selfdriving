@@ -54,19 +54,20 @@ class BaseAgent():
         self.ddpg_policy_loss = 0
 
     def save_weight(self, epoch):
-        torch.save(self.dqn_model.behaviorQ.state_dict(), os.path.join(
-            self.file_path, 'training_data', self.time_data, 'behaviorDQN.pt'))
-        torch.save(self.dqn_model.targetQ.state_dict(), os.path.join(
-            self.file_path, 'training_data', self.time_data, 'targetDQN.pt'))
+        if epoch % 50 == 0:
+            torch.save(self.dqn_model.behaviorQ.state_dict(), os.path.join(
+                self.file_path, 'training_data', self.time_data, 'behaviorDQN.pt'))
+            torch.save(self.dqn_model.targetQ.state_dict(), os.path.join(
+                self.file_path, 'training_data', self.time_data, 'targetDQN.pt'))
 
-        torch.save(self.ddpg_model.actor.state_dict(), os.path.join(
-            self.file_path, 'training_data', self.time_data, 'actor_DDPG.pt'))
-        torch.save(self.ddpg_model.actor_target.state_dict(), os.path.join(
-            self.file_path, 'training_data', self.time_data, 'actor_targetDDPG.pt'))
-        torch.save(self.ddpg_model.critic.state_dict(), os.path.join(
-            self.file_path, 'training_data', self.time_data, 'critic_DDPG.pt'))
-        torch.save(self.ddpg_model.critic_target.state_dict(), os.path.join(
-            self.file_path, 'training_data', self.time_data, 'critic_targetDDPG.pt'))
+            torch.save(self.ddpg_model.actor.state_dict(), os.path.join(
+                self.file_path, 'training_data', self.time_data, 'actor_DDPG.pt'))
+            torch.save(self.ddpg_model.actor_target.state_dict(), os.path.join(
+                self.file_path, 'training_data', self.time_data, 'actor_targetDDPG.pt'))
+            torch.save(self.ddpg_model.critic.state_dict(), os.path.join(
+                self.file_path, 'training_data', self.time_data, 'critic_DDPG.pt'))
+            torch.save(self.ddpg_model.critic_target.state_dict(), os.path.join(
+                self.file_path, 'training_data', self.time_data, 'critic_targetDDPG.pt'))
 
     def load_weight(self, time_data):
         self.dqn_model.behaviorQ.load_state_dict(torch.load(

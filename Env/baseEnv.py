@@ -45,8 +45,7 @@ class Env():
         self.device = torch.device(
             'cuda' if torch.cuda.is_available() else 'cpu')
 
-        self.reward = torch.zeros(
-            (self.num_agent, 1), dtype=torch.float, device=self.device)
+        self.reward = 0
 
         self.observ_list = self.get_observ_list()
         self.route_dict = dict()
@@ -98,9 +97,11 @@ class Env():
         # cum_reward = torch.like(reward) cumulative reward 필요한가?
 
         for idx, agent in enumerate(self.agent_list):
-            agent_reward[idx] = traci.vehicle.getSpeed(agent)
+            speed = traci.vehicle.getSpeed(agent)
+            if speed < 0:
+                speed = 0
+            agent_reward[idx] = speed
             reward = agent_reward.clone().detach()
-
         return reward
 
     def step(self, action, step):
@@ -111,12 +112,7 @@ class Env():
                 acc = action[idx, 0]
                 traci.vehicle.setSpeed(agent, currentSpeed+acc)
 
-                if (action[idx, 1]-1) == 1:
-                    self.actionLeftLane(agent)
-                elif (action[idx, 1]-1) == -1:
-                    self.actionRightLane(agent)
-                else:
-                    self.actionStayLane(agent)
+                self.changeLaneAction(agent, action[idx, 1])
 
         # agent 투입
         self.add_agent(step)
@@ -132,6 +128,7 @@ class Env():
 
         # reward 생성
         reward = self.collect_reward()
+        self.reward += reward.sum()
 
         return next_state, reward, self.num_agent
 
@@ -175,18 +172,25 @@ class Env():
         ]
         return observ_list
 
-    # move to left lane
+    def changeLaneAction(self, agent, laneChangeAction):
+        if laneChangeAction-1 == 1:  # left
+            lane = traci.vehicle.getLaneID(agent)
+            if len(lane) == 0:
+                return
+            if lane[-1] == str(traci.edge.getLaneNumber(lane[:-2])-1):
+                laneChangeAction = 0
+            else:
+                traci.vehicle.changeLaneRelative(agent, 1, 0)
+        elif laneChangeAction-1 == 1:  # right
+            lane = traci.vehicle.getLaneID(agent)
+            if len(lane) == 0:
+                return
+            if lane[-1] == str(0):
+                laneChangeAction = 0
+            else:
+                traci.vehicle.changeLaneRelative(agent, -1, 0)
+        elif laneChangeAction-1 == 1:  # straight
+            traci.vehicle.changeLaneRelative(agent, 0, 0)
 
-    def actionLeftLane(self, agent):
-        traci.vehicle.changeLaneRelative(agent, 1, 0)
-
-    # move to right lane
-    def actionRightLane(self, agent):
-        traci.vehicle.changeLaneRelative(agent, -1, 0)
-
-    # stay on current lane
-    def actionStayLane(self, agent):
-        traci.vehicle.changeLaneRelative(agent, 0, 0)
-
-    def vehicleDerection(self, agent):
+    def vehicleDirection(self, agent):
         traci.vehicle.getangle

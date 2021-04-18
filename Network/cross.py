@@ -8,12 +8,13 @@ NET_CONFIGS = {
     'flow_start': 0,
     'flow_end': 3600,
     'num_cars': 1800,
+    'speed_limit': 7,
 }
 
 
 class CrossNetwork(BaseNetwork):
     def __init__(self, file_path, file_name, configs):
-        self.configs=configs
+        self.configs = configs
         self.configs['NET_CONFIGS'] = NET_CONFIGS
         self.exp_configs = configs['EXP_CONFIGS']
         super().__init__(file_path, file_name, configs)
@@ -68,6 +69,7 @@ class CrossNetwork(BaseNetwork):
                 'from': 'n_C',
                 'id': 'C_to_{}'.format(_),
                 'to': 'n_{}'.format(_),
+                'speed': str(self.configs['NET_CONFIGS']['speed_limit']),
                 'numLanes': str(self.configs['NET_CONFIGS']['numLanes'])
             }
             edges.append(edge_info)
@@ -75,6 +77,7 @@ class CrossNetwork(BaseNetwork):
                 'from': 'n_{}'.format(_),
                 'id': '{}_to_C'.format(_),
                 'to': 'n_C',
+                'speed': str(self.configs['NET_CONFIGS']['speed_limit']),
                 'numLanes': str(self.configs['NET_CONFIGS']['numLanes'])
             }
             edges.append(edge_info)

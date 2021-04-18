@@ -5,7 +5,7 @@ import json
 # 메인에서 끌어오는 형식으로 해보려고 한다.
 def update_tensorBoard(writer, agent, env, epoch, configs):
     # agent.update_tensorBoard   Loss, Learning Rate, Epsilon dqn으로 설정해놓음
-    agent.update_tensorBoard(writer, epoch)
+    agent.update_tensorboard(writer, epoch)
     # env.update_tensorBoard   Reward
     writer.add_scalar('episode/reward', env.reward.sum(),
                       configs['EXP_CONFIGS']['max_steps'] * epoch)

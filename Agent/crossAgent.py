@@ -49,7 +49,9 @@ class CrossAgent(BaseAgent):
             actions = torch.cat(actions, dim=0).detach().clone()
         return actions
 
-    def update(self, epoch):
+    def update(self, epoch, num_agent):
+        if num_agent == 0:
+            return
         next_action, self.dqn_loss = self.dqn_model.update(epoch)
         self.ddpg_value_loss, self.ddpg_policy_loss = self.ddpg_model.update(
             next_action, epoch)

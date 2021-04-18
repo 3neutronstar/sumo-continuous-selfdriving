@@ -86,23 +86,25 @@ def train(time_data, configs, sumoBinary, sumoConfig):
         env = Env(configs)
         state, num_agent = env.init()
         total_reward = 0
-        reward = 0
-
+        tik = time.time()
         while step < configs['EXP_CONFIGS']['max_steps']:
             action = agent.get_action(state, num_agent)
             next_state, reward, num_agent = env.step(action, step)
             step += 1
             # arrived_vehicles += 해주는 과정 필요
             agent.save_replay(state, action, reward, next_state, num_agent)
-            agent.update(epoch)
+            agent.update(epoch, num_agent)
             state = next_state
             total_reward += reward.sum()
 
         traci.close()
-        epoch += 1
+        tok = time.time()
         agent.hyperparams_update()
         # Tensorboard 가져오기
         update_tensorBoard(writer, agent, env, epoch, configs)
+        agent.save_weight(epoch)
+        epoch += 1
+        print("Time:{}, Reward: {}".format(tok-tik, total_reward))
     writer.close()
 
 
