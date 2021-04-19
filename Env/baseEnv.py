@@ -180,7 +180,7 @@ class Env():
             self.follower,  # distance between following car
             traci.vehicle.getLaneIndex,  # index of current lane
             traci.vehicle.getRouteIndex,  # index of current edge
-            #self.get_direction  #for 내 차량이 갈 방향
+            self.get_direction  #for 내 차량이 갈 방향
         ]
         return observ_list
 
@@ -204,7 +204,7 @@ class Env():
         elif laneChangeAction-1 == 1:  # straight
             traci.vehicle.changeLaneRelative(agent, 0, 0)
 
-    
+
     #direction은 [current edge]-[surrounding edge]-[probability]의 순으로 구성된 중첩 dictionary
     #junction_edges는 map의 모든 junction에 대해 [junction(node)_id]-[surrounding edge]의 순으로 구성된 dictionary
     def get_direction(self, agent):
@@ -214,12 +214,12 @@ class Env():
 
         cur_edge = traci.vehicle.getRoadID(agent)
         for cur_node in junction_edges.keys(): #모든 junction node에 대해, index는 junction_edges의 key가 되는 node 이름
-            if cur_edge in junction_edges[cur_node] #cur_edge가 junction을 구성하는 edge 중 하나라면 
+            if cur_edge in junction_edges[cur_node]: #cur_edge가 junction을 구성하는 edge 중 하나라면 
                 direction[cur_edge] = junction_edges[cur_node] #[cur_edge]-[sur_edge]
                 
                 direction_key_list = direction[cur_edge] #[sur_edge]가 clockwise order를 유지하며 [cur_edge]가 [0]번째 위치 하도록 sort
                 for i in range(len(direction_key_list)):
-                    if direction_key_list[i] = cur_edge:
+                    if direction_key_list[i] == cur_edge:
                         calib_val = i 
                     if i-calib_val >= 0:
                         direction_key_sorted[i] = direction_key_list[i-calib_val] 
