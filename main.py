@@ -49,7 +49,7 @@ def test(time_data, configs, sumoBinary, sumoConfig):
     for epoch in range(configs['EXP_CONFIGS']['start_epoch'], configs['EXP_CONFIGS']['epochs']):
         traci.start(sumoCmd)
         step = 0
-        env = Env(configs)
+        env = Env(configs, file_path)
         state, num_agent = env.init()
         total_reward = 0
         tik = time.time()
@@ -94,7 +94,7 @@ def train(time_data, configs, sumoBinary, sumoConfig):
     for epoch in range(configs['EXP_CONFIGS']['start_epoch'], configs['EXP_CONFIGS']['epochs']):
         traci.start(sumoCmd)
         step = 0
-        env = Env(configs)
+        env = Env(configs, file_path)
         state, num_agent = env.init()
         total_reward = 0
         tik = time.time()
