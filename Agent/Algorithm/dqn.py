@@ -82,12 +82,12 @@ class DQN():
                                                 batch.next_state)), device=self.device, dtype=torch.bool)
 
         non_final_next_states = torch.cat([s for s in batch.next_state
-                                           if s is not None], dim=0)
-        state_batch = torch.cat(batch.state, dim=0)
-        action_batch = torch.cat(batch.action, dim=0)
+                                           if s is not None], dim=0).to(self.device)
+        state_batch = torch.cat(batch.state, dim=0).to(self.device)
+        action_batch = torch.cat(batch.action, dim=0).to(self.device)
 
         # reward_batch = torch.cat(torch.tensor(batch.reward, dim=0)
-        reward_batch = torch.tensor(batch.reward)
+        reward_batch = torch.tensor(batch.reward, device=self.device)
         # Q(s_t, a) 계산 - 모델이 Q(s_t)를 계산하고, 취한 행동의 칼럼을 선택
         state_action_values = self.behaviorQ(
             state_batch).gather(1, action_batch[:, 1].view(-1, 1).to(torch.int64))  # for 3D
