@@ -6,14 +6,14 @@ import os
 
 
 class MainAgent():
-    def __init__(self, file_path, time_data, configs):
+    def __init__(self, file_path, time_data, device, configs):
         self.configs = configs
         if configs['network'] == "cross":
             from Agent.crossAgent import CrossAgent
-            self.network = CrossAgent(file_path, time_data, configs)
+            self.network = CrossAgent(file_path, time_data, device, configs)
         elif configs['network'] == "grid":
             from Agent.gridAgent import GridAgent
-            self.network = GridAgent(file_path, time_data, configs)
+            self.network = GridAgent(file_path, time_data, device, configs)
 
 
 class BaseAgent():

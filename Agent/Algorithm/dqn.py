@@ -35,10 +35,9 @@ class QNetwork(nn.Module):
 
 
 class DQN():
-    def __init__(self, input_size, output_size, configs):
+    def __init__(self, input_size, output_size, device, configs):
         self.configs = configs
-        self.device = torch.device(
-            'cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = device
         self.behaviorQ = QNetwork(input_size, output_size, configs)
         self.behaviorQ.to(self.device)
         self.targetQ = QNetwork(input_size, output_size, configs)
