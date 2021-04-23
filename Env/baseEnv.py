@@ -180,7 +180,7 @@ class Env():
             self.follower,  # distance between following car
             traci.vehicle.getLaneIndex,  # index of current lane
             traci.vehicle.getRouteIndex,  # index of current edge
-            self.get_direction  #for 내 차량이 갈 방향
+            self.get_direction  # for 내 차량이 갈 방향
         ]
         return observ_list
 
@@ -204,89 +204,97 @@ class Env():
         elif laneChangeAction-1 == 1:  # straight
             traci.vehicle.changeLaneRelative(agent, 0, 0)
 
+    # direction은 [current edge]-[surrounding edge]-[probability]의 순으로 구성된 중첩 dictionary
+    # junction_edges는 map의 모든 junction에 대해 [junction(node)_id]-[surrounding edge]의 순으로 구성된 dictionary
 
-    #direction은 [current edge]-[surrounding edge]-[probability]의 순으로 구성된 중첩 dictionary
-    #junction_edges는 map의 모든 junction에 대해 [junction(node)_id]-[surrounding edge]의 순으로 구성된 dictionary
     def get_direction(self, agent):
         junction_edges = self.get_junction_from_net_xml()
         direction = dict()
         direction_key_sorted = list()
+        next_edge_val = 0.5
 
-        cur_edge = traci.vehicle.getRoadID(agent) #getRoadID의 반환값인 cur_edge가 왜 튜플인지?
-        #cur_edge = ''.join(cur_edge_tuple) 
-        for cur_node in junction_edges.keys(): #모든 junction node에 대해, index는 junction_edges의 key가 되는 node의 id
-            if cur_edge in junction_edges[cur_node]: #cur_edge가 junction을 구성하는 edge 중 하나라면 
+        # getRoadID의 반환값인 cur_edge가 왜 튜플인지?
+        cur_edge = traci.vehicle.getRoadID(agent)
+        #cur_edge = ''.join(cur_edge_tuple)
+        for cur_node in junction_edges.keys():  # 모든 junction node에 대해, index는 junction_edges의 key가 되는 node의 id
+            # cur_edge가 junction을 구성하는 edge 중 하나라면
+            if cur_edge in junction_edges[cur_node]:
                 direction[cur_edge] = dict.fromkeys(junction_edges[cur_node])
-                
-                direction_key_list = list(direction[cur_edge]) #[sur_edge]가 clockwise order를 유지하며 [cur_edge]가 [0]번째 위치 하도록 sort
+
+                # [sur_edge]가 clockwise order를 유지하며 [cur_edge]가 [0]번째 위치 하도록 sort
+                direction_key_list = list(direction[cur_edge])
                 for i in range(len(direction_key_list)):
                     for j in range(len(direction_key_list)):
                         if direction_key_list[j] == cur_edge:
                             calib_val = j
-                    
+
                     if calib_val+i < len(direction_key_list):
-                        direction_key_sorted.append(direction_key_list[calib_val+i]) 
+                        direction_key_sorted.append(
+                            direction_key_list[calib_val+i])
                     else:
-                        direction_key_sorted.append(direction_key_list[calib_val+i-len(direction_key_list)]) 
-                
-                #direction을 분수로 표현, cur_edge가 0이 되며, 시계방향으로 숫자가 커지도록
-                #즉, 0에 가까운 숫자일수록 좌회전, 1에 가까운 숫자일수록 우회전으로 인지될 수 있도록
+                        direction_key_sorted.append(
+                            direction_key_list[calib_val+i-len(direction_key_list)])
+
+                # direction을 분수로 표현, cur_edge가 0이 되며, 시계방향으로 숫자가 커지도록
+                # 즉, 0에 가까운 숫자일수록 좌회전, 1에 가까운 숫자일수록 우회전으로 인지될 수 있도록
                 ######
-                for idx, sur_edge in enumerate(direction_key_sorted): 
+                for idx, sur_edge in enumerate(direction_key_sorted):
                     num_edges = len(direction[cur_edge])
                     direction[cur_edge][sur_edge] = (idx / num_edges)
-            
+
                     next_edge = self.get_next_edge(cur_edge)
                     if next_edge != None:
                         next_edge_val = direction[cur_edge][next_edge]
                     else:
                         next_edge_val = 0
-                print(direction)
         return next_edge_val
 
+    # map 내에 존재하는 모든 junction들에 대해 node_id를 key로, node를 둘러싼 edge_id의 list를 값으로 갖는 딕셔너리를 반환
 
-    #map 내에 존재하는 모든 junction들에 대해 node_id를 key로, node를 둘러싼 edge_id의 list를 값으로 갖는 딕셔너리를 반환
     def get_junction_from_net_xml(self):
         add_file_path = os.path.join(
             self.file_path, 'Net_data', self.file_name + '.net.xml')
         net_tree = parse(add_file_path)
-        junctions = net_tree.findall('junction') #junction attribute를 .net.xml에서 반환
+        # junction attribute를 .net.xml에서 반환
+        junctions = net_tree.findall('junction')
 
         junction_edge = list()
         junction_edge_dict = dict()
-        
+
         for junction in junctions:
-            if junction.attrib['type'] == "traffic_light": #map 밖으로 향하는 junction은 배제하고
-                junction_id = junction.attrib['id'] #junction의 id 저장
-                
-                incLanes = junction.attrib['incLanes'] #incLanes이 가리키는 일련의 긴 string에서
-                incLanes = incLanes.split() #space 단위로 구성 edge를 split 후 리스트에 저장
-            
+            if junction.attrib['type'] == "traffic_light":  # map 밖으로 향하는 junction은 배제하고
+                junction_id = junction.attrib['id']  # junction의 id 저장
+
+                # incLanes이 가리키는 일련의 긴 string에서
+                incLanes = junction.attrib['incLanes']
+                incLanes = incLanes.split()  # space 단위로 구성 edge를 split 후 리스트에 저장
+
                 for edge in incLanes:
-                    edge = edge[:-2] #끝자리 lane_num 요소(eg: _0) 제거하고
+                    edge = edge[:-2]  # 끝자리 lane_num 요소(eg: _0) 제거하고
                     junction_edge.append(edge)
 
-                junction_edge = list(dict.fromkeys(junction_edge)) #중복 제거 후 list화
+                junction_edge = list(dict.fromkeys(
+                    junction_edge))  # 중복 제거 후 list화
 
                 junction_edge_dict[junction_id] = junction_edge
-        
-        return junction_edge_dict #list를 value로 갖는 딕셔너리 반환
 
+        return junction_edge_dict  # list를 value로 갖는 딕셔너리 반환
 
-    #next_edge를 반환
+    # next_edge를 반환
+
     def get_next_edge(self, cur_edge):
-        route = self.route_dict['route_0'] #list        
-        
+        route = self.route_dict['route_0']  # list
+
         for idx in range(len(route)):
-            if route[idx] == cur_edge: #current_edge가 route 내의 몇번째에 위치하는지 idx로 반환
+            if route[idx] == cur_edge:  # current_edge가 route 내의 몇번째에 위치하는지 idx로 반환
                 next_edge_rev = route[idx + 1]
-                
-                #junction을 이루는 edge는 모두 중심을 향하므로 agent가 나아갈 next_edge는 node가 반전
+
+                # junction을 이루는 edge는 모두 중심을 향하므로 agent가 나아갈 next_edge는 node가 반전
                 from_edge = next_edge_rev.split('_to_')[0]
                 to_edge = next_edge_rev.split('_to_')[1]
-                next_edge = "{}_to_{}".format(to_edge, from_edge).strip()            
-                
+                next_edge = "{}_to_{}".format(to_edge, from_edge).strip()
+
                 if cur_edge == route[len(route)-1]:
-                    next_edge = None #cur_edge가 route의 마지막인 경우 None을 return
-        
-        return next_edge   
+                    next_edge = None  # cur_edge가 route의 마지막인 경우 None을 return
+
+        return next_edge
