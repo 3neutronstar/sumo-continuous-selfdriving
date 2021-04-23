@@ -62,10 +62,9 @@ class Critic(nn.Module):
 
 
 class DDPG():
-    def __init__(self, input_size, output_size, configs):
+    def __init__(self, input_size, output_size, device, configs):
         self.configs = configs
-        self.device = torch.device(
-            'cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = device
         self.gamma = configs['gamma']
         self.actor = Actor(input_size, output_size, configs['actor'])
         self.actor.to(self.device)

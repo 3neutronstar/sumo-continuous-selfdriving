@@ -33,7 +33,7 @@ ENV_CONFIGS = {
 
 
 class Env():
-    def __init__(self, configs, file_path):
+    def __init__(self, file_path, device, configs):
         if configs['mode'] != 'load_train':
             configs['ENV_CONFIGS'] = ENV_CONFIGS
         self.env_configs = configs['ENV_CONFIGS']
@@ -41,8 +41,7 @@ class Env():
         self.gen_agent_list = self.env_configs['gen_agent_list']
         self.num_agent = 0
         self.state_space = self.env_configs['state_space']
-        self.device = torch.device(
-            'cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = device
         self.file_path = file_path
         self.file_name = 'cross'
 

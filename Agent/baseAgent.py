@@ -17,7 +17,7 @@ class MainAgent():
 
 
 class BaseAgent():
-    def __init__(self, file_path, time_data, configs):
+    def __init__(self, file_path, time_data, device, configs):
         self.file_path = file_path
         self.time_data = time_data
         self.action_size = configs['EXP_CONFIGS']['action_size']
@@ -27,9 +27,9 @@ class BaseAgent():
         from Agent.Algorithm.ddpg import DDPG
 
         self.dqn_model = DQN(
-            self.state_size, configs['AGENT_CONFIGS']['dqn']['action_space'], configs['AGENT_CONFIGS']['dqn'])
+            self.state_size, configs['AGENT_CONFIGS']['dqn']['action_space'], device, configs['AGENT_CONFIGS']['dqn'])
         self.ddpg_model = DDPG(
-            self.state_size+1, 1, configs['AGENT_CONFIGS']['ddpg'])
+            self.state_size+1, 1, device, configs['AGENT_CONFIGS']['ddpg'])
 
         self.dqn_loss = 0
         self.ddpg_value_loss = 0

@@ -1,6 +1,8 @@
 import os
 import sys
 import argparse
+
+from torch._C import device
 import traci
 import time
 from configs import DEFAULT_CONFIGS
@@ -26,6 +28,7 @@ def parse_args(args):
     parser.add_argument('--network', type=str, default='cross')
     # display the monitor
     parser.add_argument('--disp', type=bool, default=False)
+    parser.add_argument('--gpu', type=bool, default=False)
     parser.add_argument('--start_epoch', type=int, default=0)
     parser.add_argument('--epochs', type=int, default=100)
     # replay_option (test,load_train)
@@ -36,20 +39,20 @@ def parse_args(args):
     return parser.parse_known_args(args)[0]
 
 
-def test(time_data, configs, sumoBinary, sumoConfig):
+def test(time_data, device, configs, sumoBinary, sumoConfig):
     sumoCmd = [sumoBinary, "-c", sumoConfig]
     file_path = os.path.dirname(os.path.abspath(__file__))
     # 알고리즘 평가
     from Env.baseEnv import Env
     from Agent.baseAgent import MainAgent
 
-    agent = MainAgent(file_path, time_data, configs).network
+    agent = MainAgent(file_path, time_data, device, configs).network
     # load_weight(flags.replay_name)
     # load_params()
     for epoch in range(configs['EXP_CONFIGS']['start_epoch'], configs['EXP_CONFIGS']['epochs']):
         traci.start(sumoCmd)
         step = 0
-        env = Env(configs, file_path)
+        env = Env(file_path, device, configs)
         state, num_agent = env.init()
         total_reward = 0
         tik = time.time()
@@ -69,17 +72,16 @@ def test(time_data, configs, sumoBinary, sumoConfig):
         agent.save_weight(epoch)
         epoch += 1
         #print("Time:{}, Reward: {}".format(tok-tik, total_reward))
-    
 
 
-def train(time_data, configs, sumoBinary, sumoConfig):
+def train(time_data, device, configs, sumoBinary, sumoConfig):
     # agent 체크
     sumoCmd = [sumoBinary, "-c", sumoConfig]
     # config 값 세팅하고, 지정된 알고리즘으로 트레이닝
     file_path = os.path.dirname(os.path.abspath(__file__))
     from Agent.baseAgent import MainAgent
     from Env.baseEnv import Env
-    agent = MainAgent(file_path, time_data, configs).network
+    agent = MainAgent(file_path, time_data, device, configs).network
     # training data 경로 설정
     writer = SummaryWriter(os.path.join(file_path, 'training_data', time_data))
     # Config 세팅
@@ -94,7 +96,7 @@ def train(time_data, configs, sumoBinary, sumoConfig):
     for epoch in range(configs['EXP_CONFIGS']['start_epoch'], configs['EXP_CONFIGS']['epochs']):
         traci.start(sumoCmd)
         step = 0
-        env = Env(configs, file_path)
+        env = Env(file_path, device, configs)
         state, num_agent = env.init()
         total_reward = 0
         tik = time.time()
@@ -133,6 +135,8 @@ def simulate(flags, configs, sumoBinary, sumoConfig):
 
 def main(args):
     flags = parse_args(args)
+    device = torch.device(
+        'cuda' if torch.cuda.is_available() and flags.gpu else 'cpu')
     file_path = os.path.dirname(os.path.abspath(__file__))
     time_data = time.strftime('%m-%d_%H-%M-%S', time.localtime(time.time()))
     # file name
@@ -179,12 +183,12 @@ def main(args):
     if flags.mode.lower() == 'train' or flags.mode.lower() == 'load_train':
         sumoConfig = os.path.join(
             file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
-        train(time_data, configs, sumoBinary, sumoConfig)
+        train(time_data, device, configs, sumoBinary, sumoConfig)
 
     elif flags.mode.lower() == 'test':
         sumoConfig = os.path.join(  # time인지 file_name인지 명시
             file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
-        test(flags, configs, sumoBinary, sumoConfig)
+        test(flags, device, configs, sumoBinary, sumoConfig)
 
     else:  # simulate
         sumoConfig = os.path.join(

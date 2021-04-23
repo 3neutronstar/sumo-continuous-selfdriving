@@ -3,8 +3,8 @@ import torch
 
 AGENT_CONFIGS = {
     'ddqg': {
-        'actor': {'fc': [200, 300], 'lr': 1e-4, 'lr_decaying_epoch': 50, 'lr_decaying_rate': 0.8, 'tau':0.99},
-        'critic': {'fc': [200, 300], 'lr': 1e-4, 'lr_decaying_epoch': 50, 'lr_decaying_rate': 0.8, 'tau':0.99},
+        'actor': {'fc': [200, 300], 'lr': 1e-4, 'lr_decaying_epoch': 50, 'lr_decaying_rate': 0.8, 'tau': 0.99},
+        'critic': {'fc': [200, 300], 'lr': 1e-4, 'lr_decaying_epoch': 50, 'lr_decaying_rate': 0.8, 'tau': 0.99},
         'experience_replay_size': 1e5,
         'batch_size': 32,
         'ou': {'theta': 0.15, 'sigma': 0.2, 'mu': 0.0},
@@ -25,9 +25,9 @@ AGENT_CONFIGS = {
 
 
 class GridAgent(BaseAgent):
-    def __init__(self, file_path, configs):
+    def __init__(self, file_path, time_data, device, configs):
         configs['AGENT_CONFIGS'] = AGENT_CONFIGS
-        super(BaseAgent, self).__init__(file_path, configs)
+        super(BaseAgent, self).__init__(file_path, time_data, device, configs)
 
     def get_action(self, states):
         actions = list()
@@ -44,8 +44,8 @@ class GridAgent(BaseAgent):
         dqn_loss = self.dqn_model.update(epoch)
         ddpg_loss = self.ddpg_model.update(epoch)
 
-    def save_replay(self, state, action, reward, next_state,num_agent):
-        if num_agent==0:
+    def save_replay(self, state, action, reward, next_state, num_agent):
+        if num_agent == 0:
             return
         else:
             self.dqn_model.save_replay(state, action, reward, next_state)
