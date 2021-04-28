@@ -81,11 +81,11 @@ class Env():
                 self.agent_list.pop(idx)  # agent_list에서 도착 agent 제거
                 self.num_agent -= 1
                 if idx==0:
-                    self.prev_lane_idx=self.prev_lane_idx[1:,:]
+                    self.prev_lane_idx=self.prev_lane_idx[:,1:]
                 if idx==self.num_agent:
-                    self.prev_lane_idx=self.prev_lane_idx[:-1,:]
+                    self.prev_lane_idx=self.prev_lane_idx[:,:-1]
                 elif self.prev_lane_idx.size()[0]>1:
-                    self.prev_lane_idx=torch.cat([self.prev_lane_idx[:idx,:],self.prev_lane_idx[idx+1:,:]])
+                    self.prev_lane_idx=torch.cat([self.prev_lane_idx[:idx,:],self.prev_lane_idx[idx+1:,:]],dim=0)
                 else:
                     self.prev_lane_idx=None
 
@@ -125,8 +125,10 @@ class Env():
             (self.num_agent, 1), dtype=torch.float, device=self.device)
         for idx, agent in enumerate(self.agent_list):
             current_lane[idx]=traci.vehicle.getLaneIndex(agent)
-        pen=torch.eq(current_lane,self.prev_lane_idx)
-        penalty[pen]-=1
+        pen=torch.eq(current_lane,self.prev_lane_idx).view(-1,1)
+        if pen.size()[0]!=0:
+            penalty[pen]-=1.0
+        self.prev_lane_idx=current_lane.clone()
         #     print("no")
         return penalty
 
