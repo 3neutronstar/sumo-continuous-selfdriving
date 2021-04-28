@@ -1,7 +1,8 @@
 import os
 import sys
 import argparse
-
+import random
+import numpy as np
 from torch._C import device
 import traci
 import time
@@ -31,6 +32,7 @@ def parse_args(args):
     parser.add_argument('--gpu', type=bool, default=False)
     parser.add_argument('--start_epoch', type=int, default=0)
     parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--seed', type=int, default=1)
     # replay_option (test,load_train)
     parser.add_argument('--time_data', type=str, default=None)
     #parser.add_argument('--agent', type=str)
@@ -140,6 +142,14 @@ def main(args):
     file_path = os.path.dirname(os.path.abspath(__file__))
     time_data = time.strftime('%m-%d_%H-%M-%S', time.localtime(time.time()))
     # file name
+
+    #seed
+    random_seed = flags.seed
+    random.seed(random_seed)
+    torch.manual_seed(random_seed)
+    torch.random.manual_seed(random_seed)
+    torch.cuda.manual_seed_all(random_seed)
+    np.random.seed(random_seed)
 
     gen_training_data_path = os.path.join(
         file_path, 'training_data')
