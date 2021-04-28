@@ -20,7 +20,7 @@ transition 입장에서 state와 action tensor는 존재하나 reward는 존재�
 reward가 없어지는 경우는 done mask를 이용해서 덮어씌워야 하는 기능이 필요할 가능성이 있음.
 '''
 
-
+import random
 import torch
 import traci
 import os
@@ -28,6 +28,7 @@ from xml.etree.ElementTree import parse
 ENV_CONFIGS = {
     'state_space': 8,
     'gen_agent_list': ['agent_{}'.format(i) for i in range(70)],
+    'route_list':['route_{}'.format(i) for i in range(3)],
     'action_size': 2
 }
 
@@ -44,6 +45,7 @@ class Env():
         self.device = device
         self.file_path = file_path
         self.file_name = 'cross'
+        self.route_list=self.env_configs['route_list']
 
         self.reward = 0
 
@@ -61,8 +63,9 @@ class Env():
     # gen_agent_list에 존재하는 agent를 50 timestep 단위로 투입후 agent_list에 추가
     def add_agent(self, step):
         for idx, agent in enumerate(self.gen_agent_list):
+            random.shuffle(self.route_list)
             if step == 50*idx:
-                traci.vehicle.add(vehID=agent, routeID='route_0',
+                traci.vehicle.add(vehID=agent, routeID=self.route_list[0],
                                   typeID='rl_agent', departLane='random')
                 self.agent_list.append(agent)
                 self.num_agent += 1

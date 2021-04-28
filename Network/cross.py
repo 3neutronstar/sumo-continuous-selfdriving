@@ -162,10 +162,18 @@ class CrossNetwork(BaseNetwork):
     # specify default route for agent
     def specify_route(self):
         route = list()
-        route.append({
+        route=[{
             'id': 'route_0',
             'edges': 'L_to_C C_to_D',
-        })
+        },{
+            'id': 'route_1',
+            'edges': 'L_to_C C_to_R',
+        },{
+            'id': 'route_2',
+            'edges': 'L_to_C C_to_U',
+        },
+        
+        ]
         return route
 
     def generate_cfg(self, route_exist, mode='simulate'):
