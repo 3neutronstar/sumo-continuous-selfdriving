@@ -22,6 +22,7 @@ class BaseAgent():
         self.time_data = time_data
         self.action_size = configs['EXP_CONFIGS']['action_size']
         self.state_size = configs['EXP_CONFIGS']['state_space']
+        self.max_steps=float(configs['EXP_CONFIGS']['max_steps'])
 
         from Agent.Algorithm.dqn import DQN
         from Agent.Algorithm.ddpg import DDPG
@@ -49,10 +50,10 @@ class BaseAgent():
             'ddpg/actor_lr', self.ddpg_model.actor_optim.param_groups[0]['lr'], epoch)
         writer.add_scalar(
             'ddpg/critic_lr', self.ddpg_model.actor_optim.param_groups[0]['lr'], epoch)
-        writer.add_scalar('dqn/loss',self.dqn_loss,epoch)
-        writer.add_scalar('ddpg/value_loss',self.ddpg_value_loss,epoch)
-        writer.add_scalar('ddpg/policy_loss',self.ddpg_policy_loss,epoch)
-        writer.add_scalar('ddpg/total_loss',self.ddpg_value_loss+self.ddpg_policy_loss,epoch)
+        writer.add_scalar('dqn/loss',self.dqn_loss/self.max_steps,epoch)
+        writer.add_scalar('ddpg/value_loss',self.ddpg_value_loss/self.max_steps,epoch)
+        writer.add_scalar('ddpg/policy_loss',self.ddpg_policy_loss/self.max_steps,epoch)
+        writer.add_scalar('ddpg/total_loss',(self.ddpg_value_loss+self.ddpg_policy_loss)/self.max_steps,epoch)
         self.dqn_loss = 0
         self.ddpg_value_loss = 0
         self.ddpg_policy_loss = 0
