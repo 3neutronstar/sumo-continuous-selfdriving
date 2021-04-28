@@ -27,7 +27,7 @@ import os
 from xml.etree.ElementTree import parse
 ENV_CONFIGS = {
     'state_space': 8,
-    'gen_agent_list': ['agent_0', 'agent_1', 'agent_2', 'agent_3'],
+    'gen_agent_list': ['agent_{}'.format(i) for i in range(70)],
     'action_size': 2
 }
 
@@ -49,6 +49,7 @@ class Env():
 
         self.observ_list = self.get_observ_list()
         self.route_dict = dict()
+        self.prev_lane_idx=None
 
     def init(self):
         state = self.collect_state()
@@ -65,6 +66,11 @@ class Env():
                                   typeID='rl_agent', departLane='random')
                 self.agent_list.append(agent)
                 self.num_agent += 1
+                add_tensor=torch.zeros((1,1),device=self.device,dtype=torch.int)
+                if self.num_agent==1:
+                    self.prev_lane_idx=add_tensor
+                else:
+                    self.prev_lane_idx=torch.cat([self.prev_lane_idx,add_tensor],dim=0)
 
     # agent의 생성과 제거를 판단
     def agent_update(self):
@@ -74,6 +80,15 @@ class Env():
             if agent in arrived_list:
                 self.agent_list.pop(idx)  # agent_list에서 도착 agent 제거
                 self.num_agent -= 1
+                if idx==0:
+                    self.prev_lane_idx=self.prev_lane_idx[1:,:]
+                if idx==self.num_agent:
+                    self.prev_lane_idx=self.prev_lane_idx[:-1,:]
+                elif self.prev_lane_idx.size()[0]>1:
+                    self.prev_lane_idx=torch.cat([self.prev_lane_idx[:idx,:],self.prev_lane_idx[idx+1:,:]])
+                else:
+                    self.prev_lane_idx=None
+
 
     def collect_state(self):
         next_state = torch.zeros(
@@ -106,10 +121,12 @@ class Env():
     def collect_penalty(self):
         penalty = torch.zeros(
             (self.num_agent, 1), dtype=torch.float, device=self.device)
-        agent_penalty = torch.zeros(
+        current_lane = torch.zeros(
             (self.num_agent, 1), dtype=torch.float, device=self.device)
-        # for idx, agent in enumerate(self.agent_list):
-        #     # traci.vehicle.
+        for idx, agent in enumerate(self.agent_list):
+            current_lane[idx]=traci.vehicle.getLaneIndex(agent)
+        pen=torch.eq(current_lane,self.prev_lane_idx)
+        penalty[pen]-=1
         #     print("no")
         return penalty
 
