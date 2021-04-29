@@ -1,11 +1,9 @@
 import torch.nn as nn
-import torch.nn.functional as f
 import torch
 import torch.optim as optim
 from Agent.Algorithm.utils import ReplayMemory, Transition
 from Agent.Algorithm.random_process import OrnsteinUhlenbeckProcess
 from Agent.Algorithm.utils import hard_update, soft_update
-import copy
 
 
 class Actor(nn.Module):
