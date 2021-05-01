@@ -40,6 +40,8 @@ class Env():
         self.env_configs = configs['ENV_CONFIGS']
         self.agent_list = list()
         self.gen_agent_list = self.env_configs['gen_agent_list']
+        self.vehicle_gen_idx=0
+
         self.num_agent = 0
         self.state_space = self.env_configs['state_space']
         self.device = device
@@ -62,20 +64,19 @@ class Env():
 
     # gen_agent_list에 존재하는 agent를 50 timestep 단위로 투입후 agent_list에 추가
     def add_agent(self, step):
-        print(step)
-        for idx, agent in enumerate(self.gen_agent_list):
+        if step >= float(50*self.vehicle_gen_idx):
+            print("hi")
             random.shuffle(self.route_list)
-            if step == float(50*idx):
-                print("hi")
-                traci.vehicle.add(vehID=agent, routeID=self.route_list[0],
-                                  typeID='rl_agent', departLane='random')
-                self.agent_list.append(agent)
-                self.num_agent += 1
-                add_tensor=torch.zeros((1,1),device=self.device,dtype=torch.int)
-                if self.num_agent==1:
-                    self.prev_lane_idx=add_tensor
-                else:
-                    self.prev_lane_idx=torch.cat([self.prev_lane_idx,add_tensor],dim=0)
+            traci.vehicle.add(vehID=self.gen_agent_list[self.vehicle_gen_idx], routeID=self.route_list[0],
+                                typeID='rl_agent', departLane='random')
+            self.agent_list.append(self.gen_agent_list[self.vehicle_gen_idx])
+            self.num_agent += 1
+            add_tensor=torch.zeros((1,1),device=self.device,dtype=torch.int)
+            if self.num_agent==1:
+                self.prev_lane_idx=add_tensor
+            else:
+                self.prev_lane_idx=torch.cat([self.prev_lane_idx,add_tensor],dim=0)
+            self.vehicle_gen_idx+=1
 
     # agent의 생성과 제거를 판단
     def agent_update(self):
