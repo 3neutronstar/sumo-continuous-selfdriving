@@ -19,7 +19,7 @@ done: 차량이 도착하거나 그 밖의 이유로 사라지는 경우
 transition 입장에서 state와 action tensor는 존재하나 reward는 존재하지 않는 경우가 발생
 reward가 없어지는 경우는 done mask를 이용해서 덮어씌워야 하는 기능이 필요할 가능성이 있음.
 '''
-
+import copy
 import random
 import torch
 import traci
@@ -81,11 +81,10 @@ class Env():
     def agent_update(self):
         # 도착한 agent 제거
         arrived_list = traci.simulation.getArrivedIDList()
-        print(arrived_list)
-        for idx, agent in enumerate(self.agent_list):
+        agent_list=copy.deepcopy(self.agent_list)
+        for idx, agent in enumerate(agent_list):
             if agent in arrived_list:
-                self.agent_list.pop(idx)  # agent_list에서 도착 agent 제거
-                print(agent, self.agent_list)
+                self.agent_list.remove(agent) # agent_list에서 도착 agent 제거
                 self.num_agent -= 1
                 if idx==0:
                     self.prev_lane_idx=self.prev_lane_idx[:,1:]
