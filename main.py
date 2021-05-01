@@ -35,7 +35,7 @@ def parse_args(args):
     parser.add_argument('--seed', type=int, default=1)
     # replay_option (test,load_train)
     parser.add_argument('--time_data', type=str, default=None)
-    parser.add_argument('--step_length', type=float, default=0.2)
+    parser.add_argument('--step_length', type=float, default=1)
     #parser.add_argument('--agent', type=str)
     # algorithm decision
     #parser.add_argument('--alg', type=str, default='algorithm')

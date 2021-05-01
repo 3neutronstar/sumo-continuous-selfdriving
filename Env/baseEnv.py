@@ -64,7 +64,7 @@ class Env():
 
     # gen_agent_list에 존재하는 agent를 50 timestep 단위로 투입후 agent_list에 추가
     def add_agent(self, step):
-        if step >= float(50*self.vehicle_gen_idx) and self.vehicle_gen_idx <= len(self.gen_agent_list):
+        if step >= float(50*self.vehicle_gen_idx) and self.vehicle_gen_idx < len(self.gen_agent_list):
             random.shuffle(self.route_list)
             traci.vehicle.add(vehID=self.gen_agent_list[self.vehicle_gen_idx], routeID=self.route_list[0],
                                 typeID='rl_agent', departLane='random')
@@ -81,9 +81,11 @@ class Env():
     def agent_update(self):
         # 도착한 agent 제거
         arrived_list = traci.simulation.getArrivedIDList()
+        print(arrived_list)
         for idx, agent in enumerate(self.agent_list):
             if agent in arrived_list:
                 self.agent_list.pop(idx)  # agent_list에서 도착 agent 제거
+                print(agent, self.agent_list)
                 self.num_agent -= 1
                 if idx==0:
                     self.prev_lane_idx=self.prev_lane_idx[:,1:]
