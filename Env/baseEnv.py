@@ -169,7 +169,7 @@ class Env():
         # penalty 생성
         penalty = self.collect_penalty()
         if penalty==None and reward ==None :
-            return_reward=0.0
+            return_reward=torch.tensor([0.0],dtype=torch.float,device=self.device)
         else:
             self.reward += (reward.sum()-penalty.sum())
             return_reward=reward-penalty
