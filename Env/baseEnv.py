@@ -85,15 +85,15 @@ class Env():
         for idx, agent in enumerate(agent_list):
             if agent in arrived_list:
                 self.agent_list.remove(agent) # agent_list에서 도착 agent 제거
-                self.num_agent -= 1
-                if idx==0:
-                    self.prev_lane_idx=self.prev_lane_idx[:,1:]
-                if idx==self.num_agent:
-                    self.prev_lane_idx=self.prev_lane_idx[:,:-1]
-                elif self.prev_lane_idx.size()[0]>1:
-                    self.prev_lane_idx=torch.cat([self.prev_lane_idx[:idx,:],self.prev_lane_idx[idx+1:,:]],dim=0)
-                else:
+                if self.num_agent==1:
                     self.prev_lane_idx=None
+                elif idx==0:
+                    self.prev_lane_idx=self.prev_lane_idx[1:,:]
+                elif idx==self.num_agent-1:
+                    self.prev_lane_idx=self.prev_lane_idx[:-1,:]
+                else:
+                    self.prev_lane_idx=torch.cat([self.prev_lane_idx[:idx,:],self.prev_lane_idx[idx+1:,:]],dim=0)
+                self.num_agent -= 1
 
 
     def collect_state(self):
@@ -110,6 +110,8 @@ class Env():
         return next_state
 
     def collect_reward(self):
+        if len(self.agent_list)==0:
+            return None
         reward = torch.zeros(
             (self.num_agent, 1), dtype=torch.float, device=self.device)
         agent_reward = torch.zeros(
@@ -125,6 +127,8 @@ class Env():
         return reward
 
     def collect_penalty(self):
+        if len(self.agent_list)==0:
+            return None
         penalty = torch.zeros(
             (self.num_agent, 1), dtype=torch.float, device=self.device)
         current_lane = torch.zeros(
@@ -133,7 +137,7 @@ class Env():
             current_lane[idx]=traci.vehicle.getLaneIndex(agent)
         pen=torch.eq(current_lane,self.prev_lane_idx).view(-1,1)
         if pen.size()[0]!=0:
-            penalty[pen]-=1.0
+            penalty[pen]+=1.0
         self.prev_lane_idx=current_lane.clone()
         #     print("no")
         return penalty
@@ -164,7 +168,11 @@ class Env():
         reward = self.collect_reward()
         # penalty 생성
         penalty = self.collect_penalty()
-        self.reward += (reward.sum()-penalty.sum())
+        if penalty==None and reward ==None :
+            return_reward=0.0
+        else:
+            self.reward += (reward.sum()-penalty.sum())
+            
 
         return next_state, reward-penalty, self.num_agent
 

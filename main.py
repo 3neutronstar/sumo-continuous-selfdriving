@@ -122,7 +122,7 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         update_tensorBoard(writer, agent, env, epoch, configs)
         agent.save_weight(epoch)
         epoch += 1
-        print("Time:{}, Reward: {}".format(tok-tik, total_reward))
+        print("Epoch {}, Time:{}, Reward: {}".format(epoch, tok-tik, total_reward))
     writer.close()
 
 
