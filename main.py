@@ -61,7 +61,7 @@ def test(time_data, device, configs, sumoBinary, sumoConfig):
         while step < configs['EXP_CONFIGS']['max_steps']:
             action = agent.get_action(state, num_agent)
             next_state, reward, num_agent = env.step(action, step)
-            step += 1
+            step += 0.1
             # arrived_vehicles += 해주는 과정 필요
             agent.save_replay(state, action, reward, next_state, num_agent)
             agent.update(epoch, num_agent)
@@ -78,7 +78,7 @@ def test(time_data, device, configs, sumoBinary, sumoConfig):
 
 def train(time_data, device, configs, sumoBinary, sumoConfig):
     # agent 체크
-    sumoCmd = [sumoBinary, "-c", sumoConfig]
+    sumoCmd = [sumoBinary, "-c", sumoConfig,"--step-length","0.1"]
     # config 값 세팅하고, 지정된 알고리즘으로 트레이닝
     file_path = os.path.dirname(os.path.abspath(__file__))
     from Agent.baseAgent import MainAgent
@@ -97,15 +97,15 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
 
     for epoch in range(configs['EXP_CONFIGS']['start_epoch'], configs['EXP_CONFIGS']['epochs']):
         traci.start(sumoCmd)
-        step = 0
+        step = 0.0
         env = Env(file_path, device, configs)
         state, num_agent = env.init()
-        total_reward = 0
+        total_reward = 0.0
         tik = time.time()
         while step < configs['EXP_CONFIGS']['max_steps']:
             action = agent.get_action(state, num_agent)
             next_state, reward, num_agent = env.step(action, step)
-            step += 1
+            step += 0.1
             # arrived_vehicles += 해주는 과정 필요
             agent.save_replay(state, action, reward, next_state, num_agent)
             agent.update(epoch, num_agent)
@@ -127,10 +127,10 @@ def simulate(flags, configs, sumoBinary, sumoConfig):
     sumoCmd = [sumoBinary, "-c", sumoConfig]
     traci.start(sumoCmd)
     traci.simulation.subscribe()
-    step = 0
+    step = 0.0
     while step < configs['EXP_CONFIGS']['max_steps']:
         traci.simulationStep()  # agent.step안에 들어가야함
-        step += 1
+        step += 0.1
 
     traci.close()
 

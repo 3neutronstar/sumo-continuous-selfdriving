@@ -62,9 +62,11 @@ class Env():
 
     # gen_agent_list에 존재하는 agent를 50 timestep 단위로 투입후 agent_list에 추가
     def add_agent(self, step):
+        print(step)
         for idx, agent in enumerate(self.gen_agent_list):
             random.shuffle(self.route_list)
-            if step == 50*idx:
+            if step == float(50*idx):
+                print("hi")
                 traci.vehicle.add(vehID=agent, routeID=self.route_list[0],
                                   typeID='rl_agent', departLane='random')
                 self.agent_list.append(agent)
