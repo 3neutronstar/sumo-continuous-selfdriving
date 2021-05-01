@@ -65,7 +65,6 @@ class Env():
     # gen_agent_list에 존재하는 agent를 50 timestep 단위로 투입후 agent_list에 추가
     def add_agent(self, step):
         if step >= float(50*self.vehicle_gen_idx):
-            print("hi")
             random.shuffle(self.route_list)
             traci.vehicle.add(vehID=self.gen_agent_list[self.vehicle_gen_idx], routeID=self.route_list[0],
                                 typeID='rl_agent', departLane='random')
@@ -270,7 +269,7 @@ class Env():
                     if next_edge != None:
                         next_edge_val = direction[cur_edge][next_edge]
                     else:
-                        next_edge_val = 0
+                        next_edge_val = 0.5
         return next_edge_val
 
     # map 내에 존재하는 모든 junction들에 대해 node_id를 key로, node를 둘러싼 edge_id의 list를 값으로 갖는 딕셔너리를 반환

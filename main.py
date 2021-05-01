@@ -35,6 +35,7 @@ def parse_args(args):
     parser.add_argument('--seed', type=int, default=1)
     # replay_option (test,load_train)
     parser.add_argument('--time_data', type=str, default=None)
+    parser.add_argument('--step_length', type=float, default=0.2)
     #parser.add_argument('--agent', type=str)
     # algorithm decision
     #parser.add_argument('--alg', type=str, default='algorithm')
@@ -42,7 +43,8 @@ def parse_args(args):
 
 
 def test(time_data, device, configs, sumoBinary, sumoConfig):
-    sumoCmd = [sumoBinary, "-c", sumoConfig]
+    STEP_LENGTH=configs['step_length']
+    sumoCmd = [sumoBinary, "-c", sumoConfig,"--step-length",str(STEP_LENGTH)]
     file_path = os.path.dirname(os.path.abspath(__file__))
     # 알고리즘 평가
     from Env.baseEnv import Env
@@ -61,7 +63,7 @@ def test(time_data, device, configs, sumoBinary, sumoConfig):
         while step < configs['EXP_CONFIGS']['max_steps']:
             action = agent.get_action(state, num_agent)
             next_state, reward, num_agent = env.step(action, step)
-            step += 0.1
+            step += STEP_LENGTH
             # arrived_vehicles += 해주는 과정 필요
             agent.save_replay(state, action, reward, next_state, num_agent)
             agent.update(epoch, num_agent)
@@ -78,7 +80,8 @@ def test(time_data, device, configs, sumoBinary, sumoConfig):
 
 def train(time_data, device, configs, sumoBinary, sumoConfig):
     # agent 체크
-    sumoCmd = [sumoBinary, "-c", sumoConfig,"--step-length","0.1"]
+    STEP_LENGTH=configs['step_length']
+    sumoCmd = [sumoBinary, "-c", sumoConfig,"--step-length",str(STEP_LENGTH)]
     # config 값 세팅하고, 지정된 알고리즘으로 트레이닝
     file_path = os.path.dirname(os.path.abspath(__file__))
     from Agent.baseAgent import MainAgent
@@ -105,7 +108,7 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         while step < configs['EXP_CONFIGS']['max_steps']:
             action = agent.get_action(state, num_agent)
             next_state, reward, num_agent = env.step(action, step)
-            step += 0.1
+            step += STEP_LENGTH
             # arrived_vehicles += 해주는 과정 필요
             agent.save_replay(state, action, reward, next_state, num_agent)
             agent.update(epoch, num_agent)
@@ -124,13 +127,14 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
 
 
 def simulate(flags, configs, sumoBinary, sumoConfig):
-    sumoCmd = [sumoBinary, "-c", sumoConfig]
+    STEP_LENGTH=configs['step_length']
+    sumoCmd = [sumoBinary, "-c", sumoConfig,"--step-length",str(STEP_LENGTH)]
     traci.start(sumoCmd)
     traci.simulation.subscribe()
     step = 0.0
     while step < configs['EXP_CONFIGS']['max_steps']:
         traci.simulationStep()  # agent.step안에 들어가야함
-        step += 0.1
+        step += STEP_LENGTH
 
     traci.close()
 
@@ -188,6 +192,7 @@ def main(args):
 
     configs['EXP_CONFIGS']['start_epoch'] = flags.start_epoch  # load용
     configs['EXP_CONFIGS']['epochs'] = flags.epochs
+    configs['step_length']=flags.step_length
 
     # 모드 결정 및 실행
     if flags.mode.lower() == 'train' or flags.mode.lower() == 'load_train':
