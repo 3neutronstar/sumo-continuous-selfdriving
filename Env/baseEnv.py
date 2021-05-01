@@ -172,9 +172,10 @@ class Env():
             return_reward=0.0
         else:
             self.reward += (reward.sum()-penalty.sum())
+            return_reward=reward-penalty
             
 
-        return next_state, reward-penalty, self.num_agent
+        return next_state, return_reward, self.num_agent
 
     # check if agent can change to right lane
     def changeLaneRight(self, agent):
