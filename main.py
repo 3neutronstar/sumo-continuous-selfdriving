@@ -22,7 +22,9 @@ def parse_args(args):
 
     # 기본 옵션
     parser.add_argument('mode', type=str, choices=[
-                        'train', 'simulate', 'test', 'load_train'])
+                        'train', 'simulate', 'test', 'load_train','gym'])
+    if parser.parse_known_args(args)[0].mode.lower()=='gym':
+        parser.add_argument('--algorithm',type=str,default='ddpg',choices=['ddpg','dqn'])
 
     # 추가 옵션
     # choose road network
@@ -31,10 +33,12 @@ def parse_args(args):
     parser.add_argument('--disp', type=bool, default=False)
     parser.add_argument('--gpu', type=bool, default=False)
     parser.add_argument('--start_epoch', type=int, default=0)
-    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--epochs', type=int, default=1000)
     parser.add_argument('--seed', type=int, default=1)
     # replay_option (test,load_train)
     parser.add_argument('--time_data', type=str, default=None)
+
+
     parser.add_argument('--step_length', type=float, default=1)
     #parser.add_argument('--agent', type=str)
     # algorithm decision
@@ -126,14 +130,22 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
     writer.close()
 
 
-def simulate(flags, configs, sumoBinary, sumoConfig):
+def simulate(flags,device, configs, sumoBinary, sumoConfig):
     STEP_LENGTH=configs['step_length']
     sumoCmd = [sumoBinary, "-c", sumoConfig,"--step-length",str(STEP_LENGTH)]
     traci.start(sumoCmd)
+    file_path = os.path.dirname(os.path.abspath(__file__))
+    from Env.baseEnv import Env
+    env=Env(file_path=file_path,device=device,configs=configs)
+    env.init()
     traci.simulation.subscribe()
     step = 0.0
     while step < configs['EXP_CONFIGS']['max_steps']:
+        
+        env.add_agent(step)
         traci.simulationStep()  # agent.step안에 들어가야함
+        env.agent_update()
+
         step += STEP_LENGTH
 
     traci.close()
@@ -204,11 +216,17 @@ def main(args):
         sumoConfig = os.path.join(  # time인지 file_name인지 명시
             file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
         test(flags, device, configs, sumoBinary, sumoConfig)
+    elif flags.mode.lower() =='gym':
+        from Agent.gymAgent import GymLearner
+        learner=GymLearner(flags,device,configs)
+        learner.run()
+
+        return
 
     else:  # simulate
         sumoConfig = os.path.join(
             file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
-        simulate(flags, configs, sumoBinary, sumoConfig)
+        simulate(flags, device,configs, sumoBinary, sumoConfig)
 
 
 if __name__ == '__main__':

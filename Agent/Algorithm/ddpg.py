@@ -1,10 +1,10 @@
 import torch.nn as nn
 import torch
 import torch.optim as optim
-from Agent.Algorithm.utils import ReplayMemory, Transition
+from Agent.Algorithm.utils import ReplayMemory
 from Agent.Algorithm.random_process import OrnsteinUhlenbeckProcess
 from Agent.Algorithm.utils import hard_update, soft_update
-
+from collections import namedtuple
 
 class Actor(nn.Module):
     def __init__(self, input_size, output_size, configs):
@@ -13,6 +13,7 @@ class Actor(nn.Module):
         self.input_size = input_size
         self.output_size = output_size
         self.fc = self._make_layers()
+
 
     def forward(self, input):
         x = input
@@ -25,12 +26,12 @@ class Actor(nn.Module):
 
         for i, fc in enumerate(fc_list):
             if fc_list[i] == fc_list[-1]:
+                print(fc,self.output_size)
                 layers += [nn.Linear(fc, self.output_size)]
                 break
             layers += [nn.Linear(fc, fc_list[i+1]),
                        nn.ReLU(inplace=True)]
         return nn.Sequential(*layers)
-
 
 class Critic(nn.Module):
     def __init__(self, input_size, output_size, configs):
@@ -64,11 +65,12 @@ class DDPG():
         self.configs = configs
         self.device = device
         self.gamma = configs['gamma']
+        
         self.actor = Actor(input_size, output_size, configs['actor'])
         self.actor.to(self.device)
         self.actor_target = Actor(input_size, output_size, configs['critic'])
         self.actor_target.to(self.device)
-        self.actor_optim = optim.Adam(
+        self.actor_optim = optim.Adadelta(
             self.actor.parameters(), configs['actor']['lr'])
         self.actor_lr_scheduler = optim.lr_scheduler.StepLR(
             self.actor_optim, step_size=configs['actor']['lr_decaying_epoch'], gamma=configs['actor']['lr_decaying_rate'])
@@ -78,14 +80,12 @@ class DDPG():
         self.critic.to(self.device)
         self.critic_target = Critic(input_size, output_size, configs['critic'])
         self.critic_target.to(self.device)
-        self.critic_optim = optim.Adam(
+        self.critic_optim = optim.Adadelta(
             self.critic.parameters(), configs['critic']['lr'])
         self.critic_lr_scheduler = optim.lr_scheduler.StepLR(
             self.critic_optim, step_size=configs['critic']['lr_decaying_epoch'], gamma=configs['critic']['lr_decaying_rate'])
         hard_update(self.critic_target, self.critic)
 
-        self.experience_replay = ReplayMemory(
-            configs['experience_replay_size'])
         self.action_noise = OrnsteinUhlenbeckProcess(
             size=output_size, theta=configs['ou']['theta'], mu=configs['ou']['mu'], sigma=configs['ou']['sigma'])
         self.criterion = nn.MSELoss()
@@ -93,9 +93,20 @@ class DDPG():
         self.action_top = self.configs['action_space'][1]
         self.action_down = self.configs['action_space'][0]
 
+
+        if self.configs['mode']!='gym':
+            self.Transition = namedtuple('Transition',
+                                    ('state', 'action', 'reward', 'next_state'))
+        else:
+            self.Transition = namedtuple('Transition',
+                                    ('state', 'action', 'reward', 'next_state','done'))
+        self.experience_replay = ReplayMemory(
+            configs['experience_replay_size'],self.Transition)
+
     def get_action(self, state):
         self.actor.eval()
         mu = self.actor(state.float())
+        self.actor.train()
         mu = mu.data
 
         if self.action_noise is not None:
@@ -105,21 +116,23 @@ class DDPG():
         mu = mu.clamp(self.action_down, self.action_top)
         return mu
 
-    def update(self, next_action, epoch):
-        if len(self.experience_replay) <= self.configs['batch_size']:
+    def update(self, next_action=None, epoch=None):
+        if len(self.experience_replay) <= self.configs['init_train_ddpg']:
             return 0, 0
-        self.actor.train()
         transitions = self.experience_replay.sample(self.configs['batch_size'])
-        batch = Transition(*zip(*transitions))
+        batch = self.Transition(*zip(*transitions))
 
         state_batch = torch.cat(batch.state).to(self.device)
         action_batch = torch.cat(batch.action).to(self.device)
         reward_batch = torch.cat(batch.reward).to(self.device)
         next_state_batch = torch.cat(
             batch.next_state).to(self.device)
-        state_batch = torch.cat((state_batch, action_batch), dim=1)
-        next_state_batch = torch.cat(
-            (next_state_batch, next_action), dim=1)
+        if self.configs['mode']!='gym':
+            state_batch = torch.cat((state_batch, action_batch.detach().clone()), dim=1)
+            next_state_batch = torch.cat(
+                (next_state_batch, next_action), dim=1)
+        else:
+            done_batch=torch.tensor(batch.done).to(self.device)
 
         # get action and the state value from each target
         next_action_batch = self.actor_target(next_state_batch)
@@ -128,7 +141,11 @@ class DDPG():
 
         # calc target
         reward_batch = reward_batch.unsqueeze(1)
-        expected_values = reward_batch + self.gamma*next_state_action_values
+        if self.configs['mode']!='gym':
+            expected_values = reward_batch + self.gamma*next_state_action_values
+        else:
+            done_batch = done_batch.unsqueeze(1)
+        expected_values = reward_batch + (~done_batch) * self.gamma * next_state_action_values
 
         # critic network update
         self.critic_optim.zero_grad()
@@ -153,11 +170,16 @@ class DDPG():
 
         return value_loss.item(), policy_loss.item()
 
-    def save_replay(self, state, action, reward, next_state):
+    def save_replay(self, state, action, reward, next_state, done=None):
         # print(state, action, reward, next_state)
         # 0 index인 이유는 dqn과 섞이기 때문
-        self.experience_replay.push(
-            state, action[:, 0].view(1, -1), reward, next_state)
+        if done==None:
+            self.experience_replay.push(
+                state, action[:, 0].view(1, -1), reward, next_state)
+        else: #gym
+            self.experience_replay.push(
+                state, action[:, 0].view(1, -1), reward, next_state, done)
+
 
     def hyperparams_update(self):
         self.actor_lr_scheduler.step()

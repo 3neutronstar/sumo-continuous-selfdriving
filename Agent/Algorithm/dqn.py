@@ -4,9 +4,9 @@ import torch.nn as nn
 import torch.nn.functional as f
 import torch.optim as optim
 import random
-from Agent.Algorithm.utils import ReplayMemory, Transition
+from Agent.Algorithm.utils import ReplayMemory
 from Agent.Algorithm.utils import hard_update, soft_update
-
+from collections import namedtuple
 
 class QNetwork(nn.Module):
     def __init__(self, input_size, output_size, configs):
@@ -43,10 +43,13 @@ class DQN():
         self.targetQ = QNetwork(input_size, output_size, configs)
         self.targetQ.to(self.device)
         hard_update(self.targetQ, self.behaviorQ)
+        
+        self.transition = namedtuple('Transition',
+                                        ('state', 'action', 'reward', 'next_state'))
         self.experience_replay = ReplayMemory(
-            configs['experience_replay_size'])
+            configs['experience_replay_size'],self.transition)
         self.criterion = nn.MSELoss()
-        self.optimizer = optim.Adam(
+        self.optimizer = optim.Adadelta(
             self.behaviorQ.parameters(), lr=configs['lr'])
         self.epsilon = configs['epsilon']
         self.lr_scheduler = optim.lr_scheduler.StepLR(
@@ -74,7 +77,7 @@ class DQN():
             return None, 0
 
         transitions = self.experience_replay.sample(self.configs['batch_size'])
-        batch = Transition(*zip(*transitions))
+        batch = self.transition(*zip(*transitions))
 
         # 최종 상태가 아닌 마스크를 계산하고 배치 요소를 연결
         non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,

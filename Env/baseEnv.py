@@ -37,6 +37,7 @@ class Env():
     def __init__(self, file_path, device, configs):
         if configs['mode'] != 'load_train':
             configs['ENV_CONFIGS'] = ENV_CONFIGS
+        self.mode=configs['mode']
         self.env_configs = configs['ENV_CONFIGS']
         self.agent_list = list()
         self.gen_agent_list = self.env_configs['gen_agent_list']
@@ -66,8 +67,14 @@ class Env():
     def add_agent(self, step):
         if step >= float(50*self.vehicle_gen_idx) and self.vehicle_gen_idx < len(self.gen_agent_list):
             random.shuffle(self.route_list)
-            traci.vehicle.add(vehID=self.gen_agent_list[self.vehicle_gen_idx], routeID=self.route_list[0],
-                                typeID='rl_agent', departLane='random')
+            if self.mode in ['train','load_train','test']:
+                traci.vehicle.add(vehID=self.gen_agent_list[self.vehicle_gen_idx], routeID=self.route_list[0],
+                                    typeID='rl_agent', departLane='random')
+            elif self.mode =='simulate':
+                traci.vehicle.add(vehID='non_rl_'+self.gen_agent_list[self.vehicle_gen_idx], routeID=self.route_list[0],
+                                    typeID='rl_agent', departLane='random')
+            else:
+                raise NotImplementedError
             self.agent_list.append(self.gen_agent_list[self.vehicle_gen_idx])
             self.num_agent += 1
             add_tensor=torch.zeros((1,1),device=self.device,dtype=torch.int)
