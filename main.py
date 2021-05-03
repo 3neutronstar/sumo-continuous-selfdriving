@@ -14,7 +14,7 @@ import traci.constants as tc
 import torch
 # 인자를 가져오는 함수
 
-#
+
 
 
 def parse_args(args):
@@ -55,31 +55,27 @@ def test(time_data, device, configs, sumoBinary, sumoConfig):
     from Agent.baseAgent import MainAgent
 
     agent = MainAgent(file_path, time_data, device, configs).network
-    # load_weight(flags.replay_name)
-    # load_params()
-    for epoch in range(configs['EXP_CONFIGS']['start_epoch'], configs['EXP_CONFIGS']['epochs']):
-        traci.start(sumoCmd)
-        step = 0
-        env = Env(file_path, device, configs)
-        state, num_agent = env.init()
-        total_reward = 0
-        tik = time.time()
-        while step < configs['EXP_CONFIGS']['max_steps']:
-            action = agent.get_action(state, num_agent)
-            next_state, reward, num_agent = env.step(action, step)
-            step += STEP_LENGTH
-            # arrived_vehicles += 해주는 과정 필요
-            agent.save_replay(state, action, reward, next_state, num_agent)
-            agent.update(epoch, num_agent)
-            state = next_state
-            total_reward += reward.sum()
-
-        traci.close()
-        #tok = time.time()
-        agent.hyperparams_update()
-        agent.save_weight(epoch)
-        epoch += 1
-        #print("Time:{}, Reward: {}".format(tok-tik, total_reward))
+    
+    
+    traci.start(sumoCmd)
+    step = 0
+    env = Env(file_path, device, configs)
+    state, num_agent = env.init()
+    total_reward = 0
+    tik = time.time()
+    while step < configs['EXP_CONFIGS']['max_steps']:
+        action = agent.get_action(state, num_agent)
+        next_state, reward, num_agent = env.step(action, step)
+        step += STEP_LENGTH
+        # arrived_vehicles += 해주는 과정 필요
+        #agent.save_replay(state, action, reward, next_state, num_agent)
+        #agent.update(epoch, num_agent)
+        state = next_state
+        total_reward += reward.sum()
+        
+    traci.close()
+    tok = time.time()
+    print("Time:{}, Reward: {}".format(tok-tik, total_reward))
 
 
 def train(time_data, device, configs, sumoBinary, sumoConfig):
@@ -147,7 +143,7 @@ def simulate(flags,device, configs, sumoBinary, sumoConfig):
         env.agent_update()
 
         step += STEP_LENGTH
-
+    
     traci.close()
 
 
