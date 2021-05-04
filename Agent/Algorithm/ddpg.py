@@ -26,7 +26,6 @@ class Actor(nn.Module):
 
         for i, fc in enumerate(fc_list):
             if fc_list[i] == fc_list[-1]:
-                print(fc,self.output_size)
                 layers += [nn.Linear(fc, self.output_size)]
                 break
             layers += [nn.Linear(fc, fc_list[i+1]),
@@ -39,25 +38,24 @@ class Critic(nn.Module):
         self.configs = configs
         self.input_size = input_size
         self.output_size = output_size
-        self.before_critic, self.after_critic = self._make_layers()
+        self.fc = self._make_layers()
 
     def forward(self, input, actions):
-        x = input
-        x = self.before_critic(x)
-        x = torch.cat((x, actions), dim=1)
-        x = self.after_critic(x)
+        x = torch.cat((input, actions), dim=1)
+        x = self.fc(x)
         return x
 
     def _make_layers(self):
-        before_critic = nn.Sequential(nn.Linear(self.input_size, self.configs['fc'][0]),
-                                      nn.ReLU(inplace=True),
-                                      nn.Linear(
-                                          self.configs['fc'][0], self.configs['fc'][1]),
-                                      nn.ReLU())
-        after_critic = nn.Sequential(nn.Linear(self.configs['fc'][1]+1, self.configs['fc'][2]),
-                                     nn.ReLU(inplace=True), nn.Linear(self.configs['fc'][2], 1))
+        layers = []
+        fc_list = [self.input_size+1]+self.configs['fc']
 
-        return before_critic, after_critic
+        for i, fc in enumerate(fc_list):
+            if fc_list[i] == fc_list[-1]:
+                layers += [nn.Linear(fc, self.output_size),nn.Tanh()]
+                break
+            layers += [nn.Linear(fc, fc_list[i+1]),
+                       nn.ReLU(inplace=True)]
+        return nn.Sequential(*layers)
 
 
 class DDPG():
@@ -70,7 +68,7 @@ class DDPG():
         self.actor.to(self.device)
         self.actor_target = Actor(input_size, output_size, configs['critic'])
         self.actor_target.to(self.device)
-        self.actor_optim = optim.Adadelta(
+        self.actor_optim = optim.Adam(
             self.actor.parameters(), configs['actor']['lr'])
         self.actor_lr_scheduler = optim.lr_scheduler.StepLR(
             self.actor_optim, step_size=configs['actor']['lr_decaying_epoch'], gamma=configs['actor']['lr_decaying_rate'])
@@ -80,7 +78,7 @@ class DDPG():
         self.critic.to(self.device)
         self.critic_target = Critic(input_size, output_size, configs['critic'])
         self.critic_target.to(self.device)
-        self.critic_optim = optim.Adadelta(
+        self.critic_optim = optim.Adam(
             self.critic.parameters(), configs['critic']['lr'])
         self.critic_lr_scheduler = optim.lr_scheduler.StepLR(
             self.critic_optim, step_size=configs['critic']['lr_decaying_epoch'], gamma=configs['critic']['lr_decaying_rate'])
@@ -105,14 +103,17 @@ class DDPG():
 
     def get_action(self, state):
         self.actor.eval()
-        mu = self.actor(state.float())
-        self.actor.train()
-        mu = mu.data
+        if self.configs['init_train_ddpg']>=len(self.experience_replay):
+            mu=torch.randn([state.size()[0],1]).to(self.device)
+        else:
+            mu = self.actor(state.float().to(self.device))
+            self.actor.train()
+            mu = mu.data
 
-        if self.action_noise is not None:
-            noise = torch.Tensor(self.action_noise.sample()).to(
-                self.device)
-            mu += noise
+            if self.action_noise is not None:
+                noise = torch.Tensor(self.action_noise.sample()).to(
+                    self.device)
+                mu += noise
         mu = mu.clamp(self.action_down, self.action_top)
         return mu
 
@@ -121,7 +122,6 @@ class DDPG():
             return 0, 0
         transitions = self.experience_replay.sample(self.configs['batch_size'])
         batch = self.Transition(*zip(*transitions))
-
         state_batch = torch.cat(batch.state).to(self.device)
         action_batch = torch.cat(batch.action).to(self.device)
         reward_batch = torch.cat(batch.reward).to(self.device)
@@ -137,15 +137,15 @@ class DDPG():
         # get action and the state value from each target
         next_action_batch = self.actor_target(next_state_batch)
         next_state_action_values = self.critic_target(
-            next_state_batch, next_action_batch.detach())
+            next_state_batch, next_action_batch)
 
         # calc target
         reward_batch = reward_batch.unsqueeze(1)
         if self.configs['mode']!='gym':
-            expected_values = reward_batch + self.gamma*next_state_action_values
+            expected_values = reward_batch + self.gamma*next_state_action_values.detach()
         else:
             done_batch = done_batch.unsqueeze(1)
-        expected_values = reward_batch + (~done_batch) * self.gamma * next_state_action_values
+            expected_values = reward_batch + (~done_batch) * self.gamma * next_state_action_values
 
         # critic network update
         self.critic_optim.zero_grad()

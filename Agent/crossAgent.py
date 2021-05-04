@@ -9,7 +9,7 @@ AGENT_CONFIGS = {
         'batch_size': 32,
         'ou': {'theta': 0.15, 'sigma': 0.2, 'mu': 0.0},
         'gamma': 0.999,
-        'action_space': [-1, 1],
+        'action_space': [-1.0, 1.0],
         'init_train_ddpg':3000,
     },
     'dqn': {
