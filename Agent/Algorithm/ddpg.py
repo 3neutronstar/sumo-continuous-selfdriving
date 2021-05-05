@@ -108,7 +108,7 @@ class DDPG():
         else:
             mu = self.actor(state.float().to(self.device))
             self.actor.train()
-            mu = mu.data
+            mu = mu.data*self.action_top
 
             if self.action_noise is not None:
                 noise = torch.Tensor(self.action_noise.sample()).to(
@@ -133,6 +133,8 @@ class DDPG():
                 (next_state_batch, next_action), dim=1)
         else:
             done_batch=torch.tensor(batch.done).to(self.device)
+        
+        # print('{} {} {} {} {}'.format(state_batch.sum(),action_batch.sum(),reward_batch.sum(),next_state_batch.sum(),done_batch.sum()))
 
         # get action and the state value from each target
         next_action_batch = self.actor_target(next_state_batch)
