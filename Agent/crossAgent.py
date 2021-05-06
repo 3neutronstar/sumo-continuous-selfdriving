@@ -11,6 +11,7 @@ AGENT_CONFIGS = {
         'gamma': 0.999,
         'action_space': [-1.0, 1.0],
         'init_train_ddpg':3000,
+        'gym_mode':False,
     },
     'dqn': {
         'fc': [200, 100],
@@ -26,6 +27,7 @@ AGENT_CONFIGS = {
         'action_space': 3,
         'update_type': 'hard',
         'target_update_period': 10,
+        'gym_mode':False,
     },
 }
 

@@ -33,6 +33,7 @@ class GymLearner():
         'ou': {'theta': 0.15, 'sigma': 0.2, 'mu': 0.0},
         'gamma': 0.99,
         'action_space': [-1.0, 1.0],'init_train_ddpg':3000,
+        'gym_mode':True,
         }
         self.configs=dict(self.configs,**add_dict)
         print(env.action_space)

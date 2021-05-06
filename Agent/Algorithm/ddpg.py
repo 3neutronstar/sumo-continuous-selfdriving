@@ -92,7 +92,7 @@ class DDPG():
         self.action_down = self.configs['action_space'][0]
 
 
-        if self.configs['mode']!='gym':
+        if self.configs['gym_mode']==False:
             self.Transition = namedtuple('Transition',
                                     ('state', 'action', 'reward', 'next_state'))
         else:
@@ -120,7 +120,7 @@ class DDPG():
 
     def update(self, next_action=None, epoch=None):
         if len(self.experience_replay) <= self.configs['init_train_ddpg']:
-            return 0, 0
+            return 0.0, 0.0
         transitions = self.experience_replay.sample(self.configs['batch_size'])
         batch = self.Transition(*zip(*transitions))
         state_batch = torch.cat(batch.state).to(self.device)
@@ -128,7 +128,7 @@ class DDPG():
         reward_batch = torch.cat(batch.reward).to(self.device)
         next_state_batch = torch.cat(
             batch.next_state).to(self.device)
-        if self.configs['mode']!='gym':
+        if self.configs['gym_mode']==False:
             state_batch = torch.cat((state_batch, action_batch.detach().clone()), dim=1)
             next_state_batch = torch.cat(
                 (next_state_batch, next_action), dim=1)
@@ -138,14 +138,14 @@ class DDPG():
         # print('{} {} {} {} {}'.format(state_batch.sum(),action_batch.sum(),reward_batch.sum(),next_state_batch.sum(),done_batch.sum()))
 
         # get action and the state value from each target
-        next_action_batch = self.actor_target(next_state_batch)
+        next_action_batch = self.actor_target(next_state_batch).detach()
         next_state_action_values = self.critic_target(
-            next_state_batch, next_action_batch)
+            next_state_batch, next_action_batch).detach()
 
         # calc target
         reward_batch = reward_batch.unsqueeze(1)
-        if self.configs['mode']!='gym':
-            expected_values = reward_batch + self.gamma*next_state_action_values.detach()
+        if self.configs['gym_mode']==False:
+            expected_values = reward_batch + self.gamma*next_state_action_values
         else:
             done_batch = done_batch.unsqueeze(1)
             expected_values = reward_batch + (~done_batch) * self.gamma * next_state_action_values
@@ -179,7 +179,7 @@ class DDPG():
         if done==None:
             self.experience_replay.push(
                 state, action[:, 0].view(1, -1), reward, next_state)
-        else: #gym
+        else:
             self.experience_replay.push(
                 state, action[:, 0].view(1, -1), reward, next_state, done)
 

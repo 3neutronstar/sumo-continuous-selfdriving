@@ -9,6 +9,7 @@ AGENT_CONFIGS = {
         'batch_size': 32,
         'ou': {'theta': 0.15, 'sigma': 0.2, 'mu': 0.0},
         'gamma': 0.999,
+        'gym_mode':False,
     },
     'dqn': {
         'epsilon': 0.9,
@@ -20,6 +21,7 @@ AGENT_CONFIGS = {
         'lr_decaying_epoch': 50,
         'lr_decaying_rate': 0.5,
         'gamma': 0.999,
+        'gym_mode':False,
     },
 }
 

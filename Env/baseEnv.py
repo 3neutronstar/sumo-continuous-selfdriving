@@ -126,13 +126,11 @@ class Env():
         # cum_reward = torch.like(reward) cumulative reward 필요한가?
 
         for idx, agent in enumerate(self.agent_list):
-            speed = traci.vehicle.getSpeed(agent)
-            if speed < 0:
-                speed = 0
-            agent_reward[idx] = speed
-            reward = agent_reward.clone().detach()
+            velocity = traci.vehicle.getSpeed(agent)
+            agent_reward[idx] = max(velocity,0.0)
+        reward = agent_reward.detach().clone()
         return reward
-
+    
     def collect_penalty(self):
         if len(self.agent_list)==0:
             return None
@@ -213,7 +211,7 @@ class Env():
     def get_observ_list(self):
         #observ = list()
         observ_list = [
-            traci.vehicle.getSpeed,  # current speed of agent
+            self.getSpeed,  # current speed of agent
             self.changeLaneRight,  # whether agent can make lane change to right
             self.changeLaneLeft,  # whether agent can make lane change to left
             self.leader,  # distance between leading car
@@ -223,6 +221,10 @@ class Env():
             self.get_direction  # for 내 차량이 갈 방향
         ]
         return observ_list
+    
+    def getSpeed(self,agent):
+        velocity=traci.vehicle.getSpeed(agent)
+        return max(velocity,0.0)
 
     def changeLaneAction(self, agent, laneChangeAction):
         if laneChangeAction-1 == 1:  # left
