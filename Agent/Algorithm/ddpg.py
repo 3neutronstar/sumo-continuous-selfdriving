@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch
 import torch.optim as optim
+import torch.nn.functional as F
 from Agent.Algorithm.utils import ReplayMemory
 from Agent.Algorithm.random_process import OrnsteinUhlenbeckProcess
 from Agent.Algorithm.utils import hard_update, soft_update
@@ -86,7 +87,6 @@ class DDPG():
 
         self.action_noise = OrnsteinUhlenbeckProcess(
             size=output_size, theta=configs['ou']['theta'], mu=configs['ou']['mu'], sigma=configs['ou']['sigma'])
-        self.criterion = nn.MSELoss()
 
         self.action_top = self.configs['action_space'][1]
         self.action_down = self.configs['action_space'][0]
@@ -153,8 +153,8 @@ class DDPG():
         # critic network update
         self.critic_optim.zero_grad()
         state_action_batch = self.critic(state_batch, action_batch)
-        value_loss = self.criterion(
-            state_action_batch, expected_values.detach())
+        value_loss = F.smooth_l1_loss(
+            state_action_batch, expected_values)
         value_loss.backward()
         self.critic_optim.step()
 

@@ -56,7 +56,6 @@ def test(time_data, device, configs, sumoBinary, sumoConfig):
 
     agent = MainAgent(file_path, time_data, device, configs).network
     
-    
     traci.start(sumoCmd)
     step = 0
     env = Env(file_path, device, configs)
