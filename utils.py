@@ -4,12 +4,20 @@ import numpy as np
 import torch
 
 # 메인에서 끌어오는 형식으로 해보려고 한다.
-def update_tensorBoard(writer, agent, env, epoch, configs):
+def update_tensorBoard(writer, agent, env, epoch, configs,act_list):
     # agent.update_tensorBoard   Loss, Learning Rate, Epsilon dqn으로 설정해놓음
     agent.update_tensorboard(writer, epoch)
     # env.update_tensorBoard   Reward
     writer.add_scalar('episode/reward', env.reward.sum(),
                       configs['EXP_CONFIGS']['max_steps'] * epoch)
+    i = 0
+    while i < len(act_list):
+            writer.add_histogram('action/dqn', act_list[i][1], epoch)
+            writer.add_histogram('action/ddpg', act_list[i][0], epoch)
+            print(act_list[i][1])
+            i += 1
+            
+    
     env.reward = 0
 
 
@@ -56,9 +64,3 @@ def show_actions(writer, action, epoch,step,act_list):
     while i < len(action):
         act_list.append(act[i])
         i += 1
-    i = 0
-    if step == 3600:
-        while i < len(act_list):
-            writer.add_histogram('action/dqn', act_list[i][1], epoch)
-            writer.add_histogram('action/ddpg', act_list[i][0], epoch)
-            i += 1
