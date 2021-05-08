@@ -1,6 +1,7 @@
 import os
 import json
-
+import numpy as np
+import torch
 
 # 메인에서 끌어오는 형식으로 해보려고 한다.
 def update_tensorBoard(writer, agent, env, epoch, configs):
@@ -21,3 +22,33 @@ def load_params(file_path, file_name):
     with open(os.path.join(file_path, 'training_data', '{}.json'.format(file_name)), 'r') as fp:
         configs = json.load(fp)
     return configs
+
+def show_actions(writer, action, epoch,step,act_list):
+    # if len(action) :
+    #     while num_agent > 0:
+    #         a = np.array(action)
+    #         writer.add_scalar('step/direction', a[num_agent-1][1],step)
+    #         writer.add_scalar('step/accel', a[num_agent-1][0],step)
+    #         num_agent -1
+    #         if step == 3600:
+    #             break
+    # if len(action) :
+    #     i = 0
+    #     while i < len(action):
+    #         if action[i][1] == 0:
+    #             act_list[0] += 1
+    #         elif action[i][1] == 1:
+    #             act_list[1] += 1
+    #         else:
+    #             act_list[2] += 1
+    #         i += 1 
+    #         if step == 3600:
+    #             break
+    # if step ==3600:
+    #     writer.add_scalar('action/0',act_list[0], epoch)
+    #     writer.add_scalar('action/1',act_list[1], epoch )
+    #     writer.add_scalar('action/else',act_list[2], epoch )
+    if len(action):
+        act = torch.Tensor(action)
+        writer.add_histogram('actions', act, step)
+        

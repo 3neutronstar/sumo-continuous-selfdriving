@@ -9,7 +9,7 @@ import time
 from configs import DEFAULT_CONFIGS
 from sumolib import checkBinary
 from torch.utils.tensorboard import SummaryWriter
-from utils import update_tensorBoard, save_params, load_params
+from utils import update_tensorBoard, save_params, load_params, show_actions
 import traci.constants as tc
 import torch
 # 인자를 가져오는 함수
@@ -104,20 +104,22 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         state, num_agent = env.init()
         total_reward = 0.0
         tik = time.time()
+        act_list = [0,0,0]
         while step < configs['EXP_CONFIGS']['max_steps']:
             action = agent.get_action(state, num_agent)
             next_state, reward, num_agent = env.step(action, step)
             step += STEP_LENGTH
             # arrived_vehicles += 해주는 과정 필요
+            show_actions(writer, action, epoch, step,act_list)
             agent.save_replay(state, action, reward, next_state, num_agent)
             agent.update(epoch, num_agent)
             state = next_state
             total_reward += reward.sum()
-
         traci.close()
         tok = time.time()
         agent.hyperparams_update()
         # Tensorboard 가져오기
+        #show_actions(writer, action, num_agent, step,act_list)
         update_tensorBoard(writer, agent, env, epoch, configs)
         agent.save_weight(epoch)
         epoch += 1
