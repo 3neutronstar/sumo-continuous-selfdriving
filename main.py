@@ -120,7 +120,7 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         agent.hyperparams_update()
         # Tensorboard 가져오기
         #show_actions(writer, action, num_agent, step,act_list)
-        update_tensorBoard(writer, agent, env, epoch, configs)
+        update_tensorBoard(writer, agent, env, epoch, configs,act_list)
         agent.save_weight(epoch)
         epoch += 1
         
