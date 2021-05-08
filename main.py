@@ -123,7 +123,14 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         update_tensorBoard(writer, agent, env, epoch, configs)
         agent.save_weight(epoch)
         epoch += 1
-        print("Epoch {}, Time:{}, Reward: {}".format(epoch, tok-tik, total_reward))
+        
+        ##########
+        print('avg speed: ',eval_get_avg_speed(speed_state))
+        print('lane change:', eval_get_num_lane_change(penalty))
+        print('follower speed:', eval_get_follower_rel_speed(follower_state))
+        ##########
+        
+        print("Time:{}, Reward: {}".format(tok-tik, total_reward))
     writer.close()
 
 
