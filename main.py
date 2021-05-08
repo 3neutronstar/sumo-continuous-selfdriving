@@ -9,7 +9,7 @@ import time
 from configs import DEFAULT_CONFIGS
 from sumolib import checkBinary
 from torch.utils.tensorboard import SummaryWriter
-from utils import update_tensorBoard, save_params, load_params
+from utils import update_tensorBoard, save_params, load_params, eval_set_avg_speed, eval_get_avg_speed, eval_set_num_lane_change, eval_get_num_lane_change, eval_set_follower_rel_speed, eval_get_follower_rel_speed
 import traci.constants as tc
 import torch
 # 인자를 가져오는 함수
@@ -104,15 +104,36 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         state, num_agent = env.init()
         total_reward = 0.0
         tik = time.time()
+        
+        ##########
+        gen_agent_num = len(env.gen_agent_list)
+        speed_state = torch.zeros(
+            (gen_agent_num, 3), dtype=torch.float, device=env.device)
+        
+        prev_lane = torch.zeros(
+            (gen_agent_num, 1), dtype=torch.float, device=env.device)
+        penalty = torch.zeros(
+            (gen_agent_num, 1), dtype=torch.float, device=env.device)
+          
+        follower_state= torch.zeros(
+            (gen_agent_num, 3), dtype=torch.float, device=env.device)
+        ##########
+        
         while step < configs['EXP_CONFIGS']['max_steps']:
             action = agent.get_action(state, num_agent)
             next_state, reward, num_agent = env.step(action, step)
             step += STEP_LENGTH
-            # arrived_vehicles += 해주는 과정 필요
             agent.save_replay(state, action, reward, next_state, num_agent)
             agent.update(epoch, num_agent)
             state = next_state
             total_reward += reward.sum()
+            
+            ###########
+            eval_set_avg_speed(env, speed_state)
+            eval_set_num_lane_change(env, penalty, prev_lane)
+            eval_set_follower_rel_speed(env, follower_state)
+            ###########
+        
 
         traci.close()
         tok = time.time()
@@ -121,7 +142,14 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         update_tensorBoard(writer, agent, env, epoch, configs)
         agent.save_weight(epoch)
         epoch += 1
-        print("Epoch {}, Time:{}, Reward: {}".format(epoch, tok-tik, total_reward))
+        
+        ##########
+        print('avg speed: ',eval_get_avg_speed(speed_state))
+        print('lane change:', eval_get_num_lane_change(penalty))
+        print('follower speed:', eval_get_follower_rel_speed(follower_state))
+        ##########
+        
+        print("Time:{}, Reward: {}".format(tok-tik, total_reward))
     writer.close()
 
 
