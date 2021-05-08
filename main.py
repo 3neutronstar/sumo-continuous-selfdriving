@@ -130,7 +130,7 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         # print('follower speed:', eval_get_follower_rel_speed(follower_state))
         # ##########
         
-        print("Time:{}, Reward: {}".format(tok-tik, total_reward))
+        print("Epoch: {}, Time:{}, Reward: {}".format(epoch, tok-tik, total_reward))
     writer.close()
 
 
