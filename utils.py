@@ -52,9 +52,8 @@ def show_actions(writer, action, epoch,step,act_list):
     #     act = torch.Tensor(action)
     #     writer.add_histogram('actions', act, step)
     i = 0
-    act = torch.Tensor(action)
     while i < len(action):
-        act_list.append(act[i])
+        act_list.append(action[i].clone())
         i += 1
     i = 0
     if step == 3600:
