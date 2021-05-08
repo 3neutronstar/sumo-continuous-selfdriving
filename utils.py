@@ -14,7 +14,6 @@ def update_tensorBoard(writer, agent, env, epoch, configs,act_list):
     while i < len(act_list):
             writer.add_histogram('action/dqn', act_list[i][1], epoch)
             writer.add_histogram('action/ddpg', act_list[i][0], epoch)
-            print(act_list[i][1])
             i += 1
             
     
@@ -60,7 +59,6 @@ def show_actions(writer, action, epoch,step,act_list):
     #     act = torch.Tensor(action)
     #     writer.add_histogram('actions', act, step)
     i = 0
-    act = torch.Tensor(action)
     while i < len(action):
-        act_list.append(act[i])
+        act_list.append(action[i])
         i += 1

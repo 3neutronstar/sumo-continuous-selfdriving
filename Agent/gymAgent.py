@@ -24,7 +24,7 @@ class GymLearner():
         evol = []
         env = gym.make('Pendulum-v0')
         self.configs['action_space'] = env.action_space
-        self.configs['state_size'] = 2
+        self.configs['state_size'] = 3
         add_dict={
         'actor': {'fc': [200, 100, 100], 'lr': 1e-4, 'lr_decaying_epoch': 50, 'lr_decaying_rate': 0.8, 'tau': 0.005},
         'critic': {'fc': [200, 100, 100], 'lr': 1e-3, 'lr_decaying_epoch': 50, 'lr_decaying_rate': 0.8, 'tau': 0.005},
@@ -32,7 +32,7 @@ class GymLearner():
         'batch_size': 64,
         'ou': {'theta': 0.15, 'sigma': 0.2, 'mu': 0.0},
         'gamma': 0.99,
-        'action_space': [-2.0, 2.0],'init_train_ddpg':3000,
+        'action_space': [-1.0, 1.0],'init_train_ddpg':3000,
         'gym_mode':True,
         }
         self.configs=dict(self.configs,**add_dict)
