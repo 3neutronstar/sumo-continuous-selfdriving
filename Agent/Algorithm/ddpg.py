@@ -27,7 +27,7 @@ class Actor(nn.Module):
 
         for i, fc in enumerate(fc_list):
             if fc_list[i] == fc_list[-1]:
-                layers += [nn.Linear(fc, self.output_size)]
+                layers += [nn.Linear(fc, self.output_size),nn.Tanh()]
                 break
             layers += [nn.Linear(fc, fc_list[i+1]),
                        nn.ReLU(inplace=True)]
@@ -52,7 +52,7 @@ class Critic(nn.Module):
 
         for i, fc in enumerate(fc_list):
             if fc_list[i] == fc_list[-1]:
-                layers += [nn.Linear(fc, self.output_size),nn.Tanh()]
+                layers += [nn.Linear(fc, self.output_size)]
                 break
             layers += [nn.Linear(fc, fc_list[i+1]),
                        nn.ReLU(inplace=True)]
@@ -105,18 +105,18 @@ class DDPG():
         self.actor.eval()
         if self.configs['init_train_ddpg']>=len(self.experience_replay):
             mu=torch.randn([state.size()[0],1]).to(self.device)
+            mu = mu.clamp(self.action_down, self.action_top)
         else:
             with torch.no_grad():
                 mu = self.actor(state.float().to(self.device))
                 self.actor.train()
-                mu = mu.data*self.action_top
+                mu = mu.data
 
                 if self.action_noise is not None:
                     noise = torch.Tensor(self.action_noise.sample()).to(
                         self.device)
                     mu += noise
-        mu = mu.clamp(self.action_down, self.action_top)
-        return mu
+        return mu*self.action_top
 
     def update(self, next_action=None, epoch=None):
         if len(self.experience_replay) <= self.configs['init_train_ddpg']:
