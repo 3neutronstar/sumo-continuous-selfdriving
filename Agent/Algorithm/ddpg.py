@@ -110,13 +110,13 @@ class DDPG():
             with torch.no_grad():
                 mu = self.actor(state.float().to(self.device))
                 self.actor.train()
-                mu = mu.data
+                mu = mu.data*self.action_top
 
                 if self.action_noise is not None:
                     noise = torch.Tensor(self.action_noise.sample()).to(
                         self.device)
                     mu += noise
-        return mu*self.action_top
+        return mu
 
     def update(self, next_action=None, epoch=None):
         if len(self.experience_replay) <= self.configs['init_train_ddpg']:

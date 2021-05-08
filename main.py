@@ -104,7 +104,7 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         state, num_agent = env.init()
         total_reward = 0.0
         tik = time.time()
-        act_list = [0,0,0]
+        act_list = list()
         while step < configs['EXP_CONFIGS']['max_steps']:
             action = agent.get_action(state, num_agent)
             next_state, reward, num_agent = env.step(action, step)
