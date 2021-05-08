@@ -48,7 +48,17 @@ def show_actions(writer, action, epoch,step,act_list):
     #     writer.add_scalar('action/0',act_list[0], epoch)
     #     writer.add_scalar('action/1',act_list[1], epoch )
     #     writer.add_scalar('action/else',act_list[2], epoch )
-    if len(action):
-        act = torch.Tensor(action)
-        writer.add_histogram('actions', act, step)
-        
+    # if len(action):
+    #     act = torch.Tensor(action)
+    #     writer.add_histogram('actions', act, step)
+    i = 0
+    act = torch.Tensor(action)
+    while i < len(action):
+        act_list.append(act[i])
+        i += 1
+    i = 0
+    if step == 3600:
+        while i < len(act_list):
+            writer.add_histogram('action/dqn', act_list[i][1], epoch)
+            writer.add_histogram('action/ddpg', act_list[i][0], epoch)
+            i += 1

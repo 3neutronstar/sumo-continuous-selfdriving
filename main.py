@@ -104,7 +104,7 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         state, num_agent = env.init()
         total_reward = 0.0
         tik = time.time()
-        act_list = [0,0,0]
+        act_list = list()
         while step < configs['EXP_CONFIGS']['max_steps']:
             action = agent.get_action(state, num_agent)
             next_state, reward, num_agent = env.step(action, step)
@@ -124,11 +124,7 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         agent.save_weight(epoch)
         epoch += 1
         
-        ##########
-        print('avg speed: ',eval_get_avg_speed(speed_state))
-        print('lane change:', eval_get_num_lane_change(penalty))
-        print('follower speed:', eval_get_follower_rel_speed(follower_state))
-        ##########
+        
         
         print("Time:{}, Reward: {}".format(tok-tik, total_reward))
     writer.close()
