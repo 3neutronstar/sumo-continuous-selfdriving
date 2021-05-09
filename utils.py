@@ -16,7 +16,6 @@ def update_tensorBoard(writer, agent, env, epoch, configs,act_list):
             writer.add_histogram('action/ddpg', act_list[i][0], epoch)
             i += 1
             
-    
     env.reward = 0
 
 
@@ -58,7 +57,10 @@ def show_actions(writer, action, epoch,step,act_list):
     # if len(action):
     #     act = torch.Tensor(action)
     #     writer.add_histogram('actions', act, step)
-    i = 0
-    while i < len(action):
-        act_list.append(action[i])
-        i += 1
+    # i = 0
+    # while i < len(action):
+    #     act_list.append(action[i])
+    #     i += 1
+
+    for a in action:
+        act_list.append(a)
