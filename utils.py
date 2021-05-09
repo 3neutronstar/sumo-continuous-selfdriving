@@ -9,7 +9,7 @@ def update_tensorBoard(writer, agent, env, epoch, configs,act_list):
     agent.update_tensorboard(writer, epoch)
     # env.update_tensorBoard   Reward
     writer.add_scalar('episode/reward', env.reward.sum(),
-                      configs['EXP_CONFIGS']['max_steps'] * epoch)
+                      epoch)
     i = 0
     while i < len(act_list):
             writer.add_histogram('action/dqn', act_list[i][1], epoch)

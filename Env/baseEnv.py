@@ -99,7 +99,7 @@ class Env():
                 elif idx==self.num_agent-1:
                     self.prev_lane_idx=self.prev_lane_idx[:-1,:]
                 else:
-                    self.prev_lane_idx=torch.cat([self.prev_lane_idx[:idx,:],self.prev_lane_idx[idx+1:,:]],dim=0)
+                    self.prev_lane_idx=torch.cat([self.prev_lane_idx[:idx-1,:],self.prev_lane_idx[idx+1:,:]],dim=0)
                 self.num_agent -= 1
 
 
@@ -141,7 +141,7 @@ class Env():
         for idx, agent in enumerate(self.agent_list):
             current_lane[idx]=traci.vehicle.getLaneIndex(agent)
         pen=torch.eq(current_lane,self.prev_lane_idx).view(-1,1)
-        if pen.size()[0]!=0:
+        if pen.size()[0]!=0: #0개의 size를 가지고 있지 않다면
             penalty[pen]+=1.0
         self.prev_lane_idx=current_lane.clone()
         #     print("no")
