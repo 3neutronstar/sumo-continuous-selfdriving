@@ -15,7 +15,7 @@ def update_tensorBoard(writer, agent, env, epoch, configs,act_list):
             writer.add_histogram('action/dqn', act_list[i][1], epoch)
             writer.add_histogram('action/ddpg', act_list[i][0], epoch)
             i += 1
-            
+    writer.flush()
     env.reward = 0
 
 
