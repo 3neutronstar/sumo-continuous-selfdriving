@@ -79,7 +79,7 @@ class Env():
             self.num_agent += 1
             add_tensor=torch.zeros((1,1),device=self.device,dtype=torch.int)
             if self.num_agent==1:
-                self.prev_lane_idx=add_tensor
+                self.prev_lane_idx=add_tensor.clone()
             else:
                 self.prev_lane_idx=torch.cat([self.prev_lane_idx,add_tensor],dim=0)
             self.vehicle_gen_idx+=1
@@ -89,19 +89,16 @@ class Env():
         # 도착한 agent 제거
         arrived_list = traci.simulation.getArrivedIDList()
         agent_list=copy.deepcopy(self.agent_list)
+        # tmp_num_agent=copy.deepcopy(self.num_agent)
+
+        mask_idx=torch.ones_like(self.prev_lane_idx,dtype=torch.bool).view(-1)
         for idx, agent in enumerate(agent_list):
             if agent in arrived_list:
                 self.agent_list.remove(agent) # agent_list에서 도착 agent 제거
-                if self.num_agent==1:
-                    self.prev_lane_idx=None
-                elif idx==0:
-                    self.prev_lane_idx=self.prev_lane_idx[1:,:]
-                elif idx==self.num_agent-1:
-                    self.prev_lane_idx=self.prev_lane_idx[:-1,:]
-                else:
-                    self.prev_lane_idx=torch.cat([self.prev_lane_idx[:idx,:],self.prev_lane_idx[idx+1:,:]],dim=0)
-                self.num_agent -= 1
-
+                mask_idx[idx]=False
+                # self.num_agent -= 1
+        self.num_agent=mask_idx.sum()
+        self.prev_lane_idx=self.prev_lane_idx[mask_idx].detach().clone()
 
     def collect_state(self):
         next_state = torch.zeros(
@@ -141,7 +138,7 @@ class Env():
         for idx, agent in enumerate(self.agent_list):
             current_lane[idx]=traci.vehicle.getLaneIndex(agent)
         pen=torch.eq(current_lane,self.prev_lane_idx).view(-1,1)
-        if pen.size()[0]!=0:
+        if pen.size()[0]!=0: #0개의 size를 가지고 있지 않다면
             penalty[pen]+=1.0
         self.prev_lane_idx=current_lane.clone()
         #     print("no")
