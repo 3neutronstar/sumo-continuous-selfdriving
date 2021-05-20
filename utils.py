@@ -13,7 +13,7 @@ def update_tensorBoard(writer, agent, env, epoch, configs,act_list):
     i = 0
     dqn = list()
     ddpg = list()
-    actions=torch.tensor(act_list,dtype=torch.float).T
+    actions=torch.cat(act_list).T
     ddpg_tensor = actions[0]
     dqn_tensor = actions[1]
     writer.flush()
@@ -38,4 +38,4 @@ def load_params(file_path, file_name):
 def show_actions(writer, action, epoch,step,act_list):    
     for a in action:
         act_list.append(a)
-    return
+    return act_list

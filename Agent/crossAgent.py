@@ -64,7 +64,7 @@ class CrossAgent(BaseAgent):
             return
         else:
             for s, a, r, n_s in zip(state, action, reward, next_state):
-                print(s,a,r,n_s)
+                # print(s,a,r,n_s)
                 s, a, r, n_s = s.view(-1, self.state_size).cpu(), a.view(-1,
                                                                    self.action_size).cpu(), r.cpu(), n_s.view(-1, self.state_size).cpu()
                 self.dqn_model.save_replay(
