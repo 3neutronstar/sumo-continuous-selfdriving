@@ -54,6 +54,7 @@ class Env():
 
         self.observ_list = self.get_observ_list()
         self.route_dict = dict()
+        self.agent_route_dict = dict()
         self.prev_lane_idx=None
 
     def init(self):
@@ -78,6 +79,8 @@ class Env():
             self.agent_list.append(self.gen_agent_list[self.vehicle_gen_idx])
             self.num_agent += 1
             add_tensor=torch.zeros((1,1),device=self.device,dtype=torch.int)
+            
+            self.agent_route_dict[self.gen_agent_list[self.vehicle_gen_idx]] = self.route_list[0]
             if self.num_agent==1:
                 self.prev_lane_idx=add_tensor.clone()
             else:
@@ -253,8 +256,8 @@ class Env():
         next_edge_val = 0.5
 
         # getRoadID의 반환값인 cur_edge가 왜 튜플인지?
-        cur_edge = traci.vehicle.getRoadID(agent)
-        #cur_edge = ''.join(cur_edge_tuple)
+        #cur_edge = traci.vehicle.getRoadID(agent)
+        cur_edge = self.route_dict[self.agent_route_dict[agent]][traci.vehicle.getRouteIndex(agent)]
         for cur_node in junction_edges.keys():  # 모든 junction node에 대해, index는 junction_edges의 key가 되는 node의 id
             # cur_edge가 junction을 구성하는 edge 중 하나라면
             if cur_edge in junction_edges[cur_node]:
@@ -281,11 +284,15 @@ class Env():
                     num_edges = len(direction[cur_edge])
                     direction[cur_edge][sur_edge] = (idx / num_edges)
 
-                    next_edge = self.get_next_edge(cur_edge)
+                    next_edge = self.get_next_edge(cur_edge, agent)
                     if next_edge != None:
                         next_edge_val = direction[cur_edge][next_edge]
                     else:
                         next_edge_val = 0.5
+                        
+            #print('age-route:', agent, self.agent_route_dict[agent])
+            #print('curr_edge:', agent, cur_edge)
+            #print('next_valu:', agent, next_edge_val)
         return next_edge_val
 
     # map 내에 존재하는 모든 junction들에 대해 node_id를 key로, node를 둘러싼 edge_id의 list를 값으로 갖는 딕셔너리를 반환
@@ -321,19 +328,19 @@ class Env():
 
     # next_edge를 반환
 
-    def get_next_edge(self, cur_edge):
-        route = self.route_dict['route_0']  # list
+    def get_next_edge(self, cur_edge, agent):
+        route = self.route_dict[self.agent_route_dict[agent]]  # list
 
-        for idx in range(len(route)):
-            if route[idx] == cur_edge:  # current_edge가 route 내의 몇번째에 위치하는지 idx로 반환
-                next_edge_rev = route[idx + 1]
+        idx = route.index(cur_edge)
 
-                # junction을 이루는 edge는 모두 중심을 향하므로 agent가 나아갈 next_edge는 node가 반전
-                from_edge = next_edge_rev.split('_to_')[0]
-                to_edge = next_edge_rev.split('_to_')[1]
-                next_edge = "{}_to_{}".format(to_edge, from_edge).strip()
+        if idx != len(route)-1:
+            next_edge_rev = route[idx + 1]
 
-                if cur_edge == route[len(route)-1]:
-                    next_edge = None  # cur_edge가 route의 마지막인 경우 None을 return
+            # junction을 이루는 edge는 모두 중심을 향하므로 agent가 나아갈 next_edge는 node가 반전
+            from_edge = next_edge_rev.split('_to_')[0]
+            to_edge = next_edge_rev.split('_to_')[1]
+            next_edge = "{}_to_{}".format(to_edge, from_edge).strip()
+        else:
+            next_edge = None
 
         return next_edge
