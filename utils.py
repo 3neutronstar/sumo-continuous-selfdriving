@@ -11,10 +11,10 @@ def update_tensorBoard(writer, agent, env, epoch, configs,act_list):
     writer.add_scalar('episode/reward', env.reward.sum(),
                       epoch)
     i = 0
-    while i < len(act_list):
-            writer.add_histogram('action/dqn', act_list[i][1], epoch)
-            writer.add_histogram('action/ddpg', act_list[i][0], epoch)
-            i += 1
+    # while i < len(act_list):
+    #         writer.add_histogram('action/dqn', act_list[i][1], epoch)
+    #         writer.add_histogram('action/ddpg', act_list[i][0], epoch)
+    #         i += 1
     writer.flush()
     env.reward = 0
 
@@ -61,6 +61,6 @@ def show_actions(writer, action, epoch,step,act_list):
     # while i < len(action):
     #     act_list.append(action[i])
     #     i += 1
-
-    for a in action:
-        act_list.append(a)
+    # for a in action:
+    #     act_list.append(a)
+    return

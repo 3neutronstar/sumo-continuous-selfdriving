@@ -139,10 +139,10 @@ class Env():
             current_lane[idx]=traci.vehicle.getLaneIndex(agent)
         pen=torch.eq(current_lane,self.prev_lane_idx).view(-1,1)
         if pen.size()[0]!=0: #0개의 size를 가지고 있지 않다면
-            penalty[pen]+=1.0
+            penalty[~pen]+=1.0
         self.prev_lane_idx=current_lane.clone()
         #     print("no")
-        return penalty
+        return penalty.detach().clone()
 
     def step(self, action, step):
         # action mapping

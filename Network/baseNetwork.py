@@ -177,7 +177,7 @@ class BaseNetwork():
         self.traffic_light = traffic_light_set
 
         tl_additional = ET.Element('additional')
-        if len(self.traffic_light) != 0 or self.exp_configs['mode'] == 'simulate':
+        if len(self.traffic_light) != 0:
             for _, tl in enumerate(traffic_light_set):
                 phase_set = tl.pop('phase')
                 tlLogic = ET.SubElement(tl_additional, 'tlLogic', attrib=tl)
