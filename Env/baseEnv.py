@@ -257,7 +257,12 @@ class Env():
 
         # getRoadID의 반환값인 cur_edge가 왜 튜플인지?
         #cur_edge = traci.vehicle.getRoadID(agent)
-        cur_edge = self.route_dict[self.agent_route_dict[agent]][traci.vehicle.getRouteIndex(agent)]
+        #print(agent, self.route_dict[self.agent_route_dict[agent]])
+        #print(agent, traci.vehicle.getRouteIndex(agent))
+        index = max(traci.vehicle.getRouteIndex(agent), 0)
+        #print(agent, index)
+        cur_edge = self.route_dict[self.agent_route_dict[agent]][index]
+
         for cur_node in junction_edges.keys():  # 모든 junction node에 대해, index는 junction_edges의 key가 되는 node의 id
             # cur_edge가 junction을 구성하는 edge 중 하나라면
             if cur_edge in junction_edges[cur_node]:
