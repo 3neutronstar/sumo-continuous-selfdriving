@@ -41,7 +41,5 @@ def load_params(file_path, file_name):
     return configs
 
 def show_actions(writer, action, epoch,step,act_list):    
-    i = 0
-    while i < len(action):
-        act_list.append(action[i])
-        i += 1
+    for a in action:
+        act_list.append(a)
