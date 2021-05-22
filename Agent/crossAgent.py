@@ -15,14 +15,14 @@ AGENT_CONFIGS = {
     },
     'dqn': {
         'fc': [200, 100],
-        'epsilon': 0.5,
+        'epsilon': 0.9,
         'epsilon_decaying_rate': 0.99,
         'epsilon_final': 0.001,
         'experience_replay_size': 1e4,
         'batch_size': 32,
         'lr': 1e-3,
         'lr_decaying_epoch': 50,
-        'lr_decaying_rate': 0.8,
+        'lr_decaying_rate': 0.5,
         'gamma': 0.999,
         'action_space': 3,
         'update_type': 'hard',
@@ -64,9 +64,8 @@ class CrossAgent(BaseAgent):
             return
         else:
             for s, a, r, n_s in zip(state, action, reward, next_state):
-                # print(s,a,r,n_s)
-                s, a, r, n_s = s.view(-1, self.state_size).cpu(), a.view(-1,
-                                                                   self.action_size).cpu(), r.cpu(), n_s.view(-1, self.state_size).cpu()
+                s, a, r, n_s = s.view(-1, self.state_size), a.view(-1,
+                                                                   self.action_size), r, n_s.view(-1, self.state_size)
                 self.dqn_model.save_replay(
                     s, a, r, n_s)
                 self.ddpg_model.save_replay(s, a, r, n_s)
