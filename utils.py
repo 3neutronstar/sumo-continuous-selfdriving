@@ -10,17 +10,9 @@ def update_tensorBoard(writer, agent, env, epoch, configs,act_list):
     # env.update_tensorBoard   Reward
     writer.add_scalar('episode/reward', env.reward.sum(),
                       epoch)
-    i = 0
-    dqn = list()
-    ddpg = list()
-    while i < len(act_list):
-            #writer.add_histogram('action/dqn',epoch,act_list[i][1])
-            #writer.add_histogram('action/ddpg', epoch, act_list[i][0])
-            dqn.append(act_list[i][1])
-            ddpg.append(act_list[i][0])
-            i += 1
-    dqn_tensor = torch.tensor(dqn)        
-    ddpg_tensor = torch.tensor(ddpg)
+    actions=torch.cat(act_list,dim=0).T
+    dqn_tensor = actions[1]
+    ddpg_tensor = actions[0]
 
     writer.add_scalar('action/dqn_mean', torch.mean(dqn_tensor), epoch)
     writer.add_scalar('action/dqn_var', torch.var(dqn_tensor), epoch)
@@ -42,4 +34,4 @@ def load_params(file_path, file_name):
 
 def show_actions(writer, action, epoch,step,act_list):    
     for a in action:
-        act_list.append(a)
+        act_list.append(a.view(1,-1))
