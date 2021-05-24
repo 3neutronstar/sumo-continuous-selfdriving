@@ -134,6 +134,7 @@ class Env():
     def collect_penalty(self):
         if len(self.agent_list)==0:
             return None
+        # lanechange penalty
         penalty = torch.zeros(
             (self.num_agent, 1), dtype=torch.float, device=self.device)
         current_lane = torch.zeros(
@@ -144,7 +145,13 @@ class Env():
         if pen.size()[0]!=0: #0개의 size를 가지고 있지 않다면
             penalty[~pen]+=1.0
         self.prev_lane_idx=current_lane.clone()
-        #     print("no")
+
+        # teleport penalty
+        teleport_list=traci.simulation.getStartingTeleportIDList()
+        for tp_veh in teleport_list:
+            if tp_veh in self.agent_list:
+                idx=self.agent_list.index(tp_veh)
+                penalty[idx]+=traci.lane.getMaxSpeed(traci.vehicle.getLaneID(tp_veh))/2.0
         return penalty.detach().clone()
 
     def step(self, action, step):
@@ -154,8 +161,11 @@ class Env():
                 currentSpeed = traci.vehicle.getSpeed(agent)
                 acc = action[idx, 0]
                 traci.vehicle.setSpeed(agent, currentSpeed+acc)
-
-                self.changeLaneAction(agent, action[idx, 1])
+                before_action=action[idx,1]
+                action[idx,1]=self.changeLaneAction(agent, int(action[idx, 1]))
+                after_action=action[idx,1]
+                if after_action!=before_action:
+                    print(before_action,after_action)
 
         # agent 투입
         self.add_agent(step)
@@ -229,22 +239,26 @@ class Env():
     def changeLaneAction(self, agent, laneChangeAction):
         if laneChangeAction-1 == 1:  # left
             lane = traci.vehicle.getLaneID(agent)
-            if len(lane) == 0:
-                return
+            if len(lane) == 0: # no lane
+                return 0.0
             if lane[-1] == str(traci.edge.getLaneNumber(lane[:-2])-1):
                 laneChangeAction = 0
             else:
                 traci.vehicle.changeLaneRelative(agent, 1, 0)
-        elif laneChangeAction-1 == 1:  # right
+        elif laneChangeAction-1 == -1:  # right
             lane = traci.vehicle.getLaneID(agent)
-            if len(lane) == 0:
-                return
+            if len(lane) == 0:# no lane
+                return 0.0
             if lane[-1] == str(0):
                 laneChangeAction = 0
             else:
                 traci.vehicle.changeLaneRelative(agent, -1, 0)
-        elif laneChangeAction-1 == 1:  # straight
+        elif laneChangeAction-1 == 0:  # straight
             traci.vehicle.changeLaneRelative(agent, 0, 0)
+        else:
+            raise NotImplementedError
+        return float(laneChangeAction)
+
 
     # direction은 [current edge]-[surrounding edge]-[probability]의 순으로 구성된 중첩 dictionary
     # junction_edges는 map의 모든 junction에 대해 [junction(node)_id]-[surrounding edge]의 순으로 구성된 dictionary
