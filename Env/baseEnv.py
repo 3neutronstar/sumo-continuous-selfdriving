@@ -203,7 +203,7 @@ class Env():
         try:
             leadDistance = traci.vehicle.getLeader(agent, 0.0)[1]
         except TypeError:
-            leadDistance = -1
+            leadDistance = -1.0
         return leadDistance
 
     # Return distance from following car, -1 if none
@@ -211,7 +211,7 @@ class Env():
         try:
             followDistance = traci.vehicle.getFollower(agent, 0.0)[1]
         except TypeError:
-            followDistance = -1
+            followDistance = -1.0
         return followDistance
 
     def get_observ_list(self):
@@ -238,7 +238,7 @@ class Env():
             if len(lane) == 0: # no lane
                 return 0.0
             if lane[-1] == str(traci.edge.getLaneNumber(lane[:-2])-1):
-                laneChangeAction = 0
+                laneChangeAction = 0.0
             else:
                 traci.vehicle.changeLaneRelative(agent, 1, 0)
         elif laneChangeAction-1 == -1:  # right
@@ -246,14 +246,15 @@ class Env():
             if len(lane) == 0:# no lane
                 return 0.0
             if lane[-1] == str(0):
-                laneChangeAction = 0
+                laneChangeAction = 0.0
             else:
                 traci.vehicle.changeLaneRelative(agent, -1, 0)
         elif laneChangeAction-1 == 0:  # straight
-            traci.vehicle.changeLaneRelative(agent, 0, 0)
+            # traci.vehicle.changeLaneRelative(agent, 0, 0)
+            pass
         else:
             raise NotImplementedError
-        return float(laneChangeAction)
+        return laneChangeAction
 
 
     # direction은 [current edge]-[surrounding edge]-[probability]의 순으로 구성된 중첩 dictionary
