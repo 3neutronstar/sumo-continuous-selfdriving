@@ -236,17 +236,17 @@ class Env():
         if laneChangeAction-1 == 1:  # left
             lane = traci.vehicle.getLaneID(agent)
             if len(lane) == 0: # no lane
-                return 0.0
+                return 1.0
             if lane[-1] == str(traci.edge.getLaneNumber(lane[:-2])-1):
-                laneChangeAction = 0.0
+                laneChangeAction = 1.0
             else:
                 traci.vehicle.changeLaneRelative(agent, 1, 0)
         elif laneChangeAction-1 == -1:  # right
             lane = traci.vehicle.getLaneID(agent)
             if len(lane) == 0:# no lane
-                return 0.0
+                return 1.0
             if lane[-1] == str(0):
-                laneChangeAction = 0.0
+                laneChangeAction = 1.0
             else:
                 traci.vehicle.changeLaneRelative(agent, -1, 0)
         elif laneChangeAction-1 == 0:  # straight
@@ -254,7 +254,7 @@ class Env():
             pass
         else:
             raise NotImplementedError
-        return laneChangeAction
+        return float(laneChangeAction)
 
 
     # direction은 [current edge]-[surrounding edge]-[probability]의 순으로 구성된 중첩 dictionary
