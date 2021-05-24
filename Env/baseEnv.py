@@ -161,11 +161,7 @@ class Env():
                 currentSpeed = traci.vehicle.getSpeed(agent)
                 acc = action[idx, 0]
                 traci.vehicle.setSpeed(agent, currentSpeed+acc)
-                before_action=action[idx,1]
                 action[idx,1]=self.changeLaneAction(agent, int(action[idx, 1]))
-                after_action=action[idx,1]
-                if after_action!=before_action:
-                    print(before_action,after_action)
 
         # agent 투입
         self.add_agent(step)
