@@ -121,32 +121,32 @@ class CrossNetwork(BaseNetwork):
         r = 'r'
         phase_set = [
             {'duration': '15',  # 1
-                'state': 'r{2}{1}gr{2}{3}rr{2}{1}gr{2}{3}r'.format(  # 위좌아래좌
+                'state': '{2}{1}g{2}{3}r{2}{1}g{2}{3}r'.format(  # 위좌아래좌
                     g*numLanes, g, r*numLanes, r),
              },
             {'duration': '3',
-                'state': 'y'*(12+4*numLanes),
+                'state': 'y'*(8+4*numLanes),
              },
             {'duration': '25',  # 2
-                'state': 'G{0}{3}rr{2}{3}rG{0}{3}rr{2}{3}r'.format(  # 위직아래직
+                'state': '{0}{3}r{2}{3}r{0}{3}r{2}{3}r'.format(  # 위직아래직
                     g*numLanes, g, r*numLanes, r),  # current
              },
             {'duration': '3',
-                'state': 'y'*(12+4*numLanes),
+                'state': 'y'*(8+4*numLanes),
              },
             {'duration': '15',  # 1
-                'state': 'r{2}{3}rr{2}{1}gr{2}{3}rr{2}{1}g'.format(  # 좌좌우좌
+                'state': '{2}{3}r{2}{1}g{2}{3}r{2}{1}g'.format(  # 좌좌우좌
                     g*numLanes, g, r*numLanes, r),
              },
             {'duration': '3',
-                'state': 'y'*(12+4*numLanes),
+                'state': 'y'*(8+4*numLanes),
              },
             {'duration': '25',  # 1
-                'state': 'r{2}{3}rG{0}{3}rr{2}{3}rG{0}{3}g'.format(  # 좌직우직
+                'state': '{2}{3}r{0}{3}r{2}{3}r{0}{3}g'.format(  # 좌직우직
                     g*numLanes, g, r*numLanes, r),  # current
              },
             {'duration': '3',
-                'state': 'y'*(12+4*numLanes),
+                'state': 'y'*(8+4*numLanes),
              },
         ]
 
