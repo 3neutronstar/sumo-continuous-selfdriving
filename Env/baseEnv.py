@@ -26,7 +26,7 @@ import traci
 import os
 from xml.etree.ElementTree import parse
 ENV_CONFIGS = {
-    'state_space': 8,
+    'state_space': 9,
     'gen_agent_list': ['agent_{}'.format(i) for i in range(70)],
     'route_list':['route_{}'.format(i) for i in range(3)],
     'action_size': 2
@@ -228,7 +228,8 @@ class Env():
             self.follower,  # distance between following car
             traci.vehicle.getLaneIndex,  # index of current lane
             traci.vehicle.getRouteIndex,  # index of current edge
-            self.get_direction  # for 내 차량이 갈 방향
+            self.get_direction,  # for 내 차량이 갈 방향
+            self.get_traffic_light
         ]
         return observ_list
     
@@ -274,9 +275,10 @@ class Env():
         #cur_edge = traci.vehicle.getRoadID(agent)
         #print(agent, self.route_dict[self.agent_route_dict[agent]])
         #print(agent, traci.vehicle.getRouteIndex(agent))
-        index = max(traci.vehicle.getRouteIndex(agent), 0)
+        #index = max(traci.vehicle.getRouteIndex(agent), 0)
         #print(agent, index)
-        cur_edge = self.route_dict[self.agent_route_dict[agent]][index]
+        #cur_edge = self.route_dict[self.agent_route_dict[agent]][index]
+        cur_edge = self.get_cur_edge(agent)
 
         for cur_node in junction_edges.keys():  # 모든 junction node에 대해, index는 junction_edges의 key가 되는 node의 id
             # cur_edge가 junction을 구성하는 edge 중 하나라면
@@ -365,22 +367,45 @@ class Env():
 
         return next_edge
     
-    def get_current_edge(self,agent):
-        edge=traci.vehicle.getRoadID(agent)
-        return edge
-
-    def get_next_node(self,agent,edge):
-        next_node='n_'+edge.split('_to_')[1]
-        return next_node
+    def get_cur_edge(self, agent):
+        index = max(traci.vehicle.getRouteIndex(agent), 0)        
+        cur_edge = self.route_dict[self.agent_route_dict[agent]][index]
+        
+        return cur_edge
     
-    def get_traffic_light(self,agent):
-        current_edge=self.get_current_edge(agent)
-        next_node=self.get_next_node(agent,current_edge)
+    
+    def get_traffic_light(self, agent):
+        cur_edge = self.get_cur_edge(agent)
+        next_node = 'n_' + cur_edge.split('_to_')[1]
+
         if next_node in traci.trafficlight.getIDList():
-            tl_state=self.mapping_tl(next_node)
+            tl_state = self.mapping_tl(cur_edge, next_node)
         else:
-            tl_state=-1#not exist
+            tl_state = -1 #not exist
         
         return tl_state
 
+    
+
+    def mapping_tl(self, cur_edge, next_node):
+        tl_dict = dict()
+        
+        all_tl = traci.trafficlight.getRedYellowGreenState(next_node)
+        tl_dict['U_to_C'] = all_tl[0:5].lower()
+        tl_dict['R_to_C'] = all_tl[5:10].lower()
+        tl_dict['D_to_C'] = all_tl[10:15].lower()
+        tl_dict['L_to_C'] = all_tl[15:20].lower() #실제 사용될 tl
+
+
+
+        if tl_dict[cur_edge] == 'rrrrr': #정지
+            tl_state = 0
+        elif tl_dict[cur_edge] == 'yyyyy': #대기
+            tl_state = 1
+        elif tl_dict[cur_edge] == 'ggggr': #직진
+            tl_state = 2        
+        elif tl_dict[cur_edge] == 'grrrg': #좌/우회전
+            tl_state = 3
+        
+        return tl_state 
     
