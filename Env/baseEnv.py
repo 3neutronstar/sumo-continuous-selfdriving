@@ -366,7 +366,6 @@ class Env():
         return edge
 
     def get_next_node(self,agent,edge):
-        self.get_current_edge(agent)
         next_node='n_'+edge.split('_to_')[1]
         return next_node
     
@@ -379,3 +378,5 @@ class Env():
             tl_state=-1#not exist
         
         return tl_state
+
+    
