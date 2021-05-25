@@ -209,7 +209,6 @@ def main(args):
     configs['EXP_CONFIGS']['start_epoch'] = flags.start_epoch  # load용
     configs['EXP_CONFIGS']['epochs'] = flags.epochs
     configs['step_length']=flags.step_length
-
     # 모드 결정 및 실행
     if flags.mode.lower() == 'train' or flags.mode.lower() == 'load_train':
         sumoConfig = os.path.join(

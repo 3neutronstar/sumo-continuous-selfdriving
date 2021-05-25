@@ -364,3 +364,23 @@ class Env():
             next_edge = None
 
         return next_edge
+    
+    def get_current_edge(self,agent):
+        edge=traci.vehicle.getRoadID(agent)
+        return edge
+
+    def get_next_node(self,agent,edge):
+        next_node='n_'+edge.split('_to_')[1]
+        return next_node
+    
+    def get_traffic_light(self,agent):
+        current_edge=self.get_current_edge(agent)
+        next_node=self.get_next_node(agent,current_edge)
+        if next_node in traci.trafficlight.getIDList():
+            tl_state=self.mapping_tl(next_node)
+        else:
+            tl_state=-1#not exist
+        
+        return tl_state
+
+    
