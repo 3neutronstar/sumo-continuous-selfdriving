@@ -25,7 +25,7 @@ AGENT_CONFIGS = {
         'lr_decaying_rate': 0.5,
         'gamma': 0.999,
         'action_space': 3,
-        'update_type': 'soft',
+        'update_type': 'hard',
         'tau':0.99,
         'target_update_period': 20,
         'gym_mode':False,

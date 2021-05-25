@@ -151,7 +151,11 @@ class Env():
         for tp_veh in teleport_list:
             if tp_veh in self.agent_list:
                 idx=self.agent_list.index(tp_veh)
-                penalty[idx]+=traci.lane.getMaxSpeed(traci.vehicle.getLaneID(tp_veh))/2.0
+                lane=traci.vehicle.getLaneID(tp_veh)
+                if len(lane)==0: # error
+                    penalty[idx]+=5.0
+                else:
+                    penalty[idx]+=traci.lane.getMaxSpeed(lane)/2.0
         return penalty.detach().clone()
 
     def step(self, action, step):
