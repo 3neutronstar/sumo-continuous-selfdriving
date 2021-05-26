@@ -34,6 +34,9 @@ class GymLearner():
         'gamma': 0.99,
         'action_space': [-1.0, 1.0],'init_train_ddpg':3000,
         'gym_mode':True,
+        'initial_noise_scale':1.0,
+        'final_noise_scale':0.01,
+        'noise_reduce_rate':0.99,
         }
         self.configs=dict(self.configs,**add_dict)
         print(env.action_space)

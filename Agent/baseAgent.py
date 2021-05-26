@@ -30,9 +30,9 @@ class BaseAgent():
         self.ddpg_model = DDPG(
             self.state_size+1, 1, self.mode,device, configs['AGENT_CONFIGS']['ddpg'])
 
-        self.dqn_loss = 0
-        self.ddpg_value_loss = 0
-        self.ddpg_policy_loss = 0
+        self.dqn_loss = 0.0
+        self.ddpg_value_loss = 0.0
+        self.ddpg_policy_loss = 0.0
 
     def get_action(self, state, num_agent):
         raise NotImplementedError
@@ -52,10 +52,10 @@ class BaseAgent():
         writer.add_scalar('ddpg/value_loss',self.ddpg_value_loss/self.max_steps,epoch)
         writer.add_scalar('ddpg/policy_loss',self.ddpg_policy_loss/self.max_steps,epoch)
         writer.add_scalar('ddpg/total_loss',(self.ddpg_value_loss+self.ddpg_policy_loss)/self.max_steps,epoch)
-        print("DQN LOSS:{} DDPG VALUE LOSS:{} POLICY LOSS:{}".format(self.dqn_loss,self.ddpg_value_loss,self.ddpg_policy_loss))
-        self.dqn_loss = 0
-        self.ddpg_value_loss = 0
-        self.ddpg_policy_loss = 0
+        print("DQN LOSS:{:.7f} DDPG VALUE LOSS:{:.7f} POLICY LOSS:{:.7f}".format(self.dqn_loss/self.max_steps,self.ddpg_value_loss/self.max_steps,self.ddpg_policy_loss/self.max_steps))
+        self.dqn_loss = 0.0
+        self.ddpg_value_loss = 0.0
+        self.ddpg_policy_loss = 0.0
 
     def save_weight(self, epoch,best_reward,total_reward):
         if epoch!=0 and best_reward<total_reward:
