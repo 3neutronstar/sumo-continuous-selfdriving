@@ -71,8 +71,8 @@ class Env():
             if self.mode in ['train','load_train','test']:
                 traci.vehicle.add(vehID=self.gen_agent_list[self.vehicle_gen_idx], routeID=self.route_list[0],
                                     typeID='rl_agent', departLane='random')
-            elif self.mode =='simulate':
-                traci.vehicle.add(vehID='non_rl_'+self.gen_agent_list[self.vehicle_gen_idx], routeID=self.route_list[0],
+            elif self.mode =='simulate':#'non_rl_'
+                traci.vehicle.add(vehID=self.gen_agent_list[self.vehicle_gen_idx], routeID=self.route_list[0],
                                     typeID='rl_agent', departLane='random')
             else:
                 raise NotImplementedError
@@ -382,7 +382,7 @@ class Env():
             tl_state = self.mapping_tl(cur_edge, next_node)
         else:
             tl_state = -1 #not exist
-        
+        # print(next_node,tl_state)
         return tl_state
 
     

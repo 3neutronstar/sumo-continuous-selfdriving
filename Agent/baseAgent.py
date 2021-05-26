@@ -55,8 +55,8 @@ class BaseAgent():
         self.ddpg_value_loss = 0
         self.ddpg_policy_loss = 0
 
-    def save_weight(self, epoch):
-        if epoch % 50 == 0:
+    def save_weight(self, epoch,best_reward,total_reward):
+        if epoch!=0 and best_reward<total_reward:
             torch.save(self.dqn_model.behaviorQ.state_dict(), os.path.join(
                 self.file_path, 'training_data', self.time_data, 'behaviorDQN.pt'))
             torch.save(self.dqn_model.targetQ.state_dict(), os.path.join(

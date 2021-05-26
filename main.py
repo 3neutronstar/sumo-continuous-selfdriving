@@ -9,7 +9,7 @@ import time
 from configs import DEFAULT_CONFIGS
 from sumolib import checkBinary
 from torch.utils.tensorboard import SummaryWriter
-from utils import update_tensorBoard, save_params, load_params, show_actions
+from utils import *
 import traci.constants as tc
 import torch
 # 인자를 가져오는 함수
@@ -61,6 +61,19 @@ def test(time_data, device, configs, sumoBinary, sumoConfig):
     env = Env(file_path, device, configs)
     state, num_agent = env.init()
     total_reward = 0
+    ##########
+    gen_agent_num = len(env.gen_agent_list)
+    speed_state = torch.zeros(
+        (gen_agent_num, 3), dtype=torch.float, device=env.device)
+
+    prev_lane = torch.zeros(
+        (gen_agent_num, 1), dtype=torch.float, device=env.device)
+    penalty = torch.zeros(
+        (gen_agent_num, 1), dtype=torch.float, device=env.device)
+
+    follower_state= torch.zeros(
+        (gen_agent_num, 3), dtype=torch.float, device=env.device)
+    ##########
     tik = time.time()
     while step < configs['EXP_CONFIGS']['max_steps']:
         action = agent.get_action(state, num_agent)
@@ -69,11 +82,23 @@ def test(time_data, device, configs, sumoBinary, sumoConfig):
         # arrived_vehicles += 해주는 과정 필요
         #agent.save_replay(state, action, reward, next_state, num_agent)
         #agent.update(epoch, num_agent)
+        ###########
+        eval_set_avg_speed(env, speed_state)
+        eval_set_num_lane_change(env, penalty, prev_lane)
+        eval_set_follower_rel_speed(env, follower_state)
+        ###########
         state = next_state
         total_reward += reward.sum()
         
     traci.close()
     tok = time.time()
+    
+    ##########
+    print('avg speed: ',eval_get_avg_speed(speed_state))
+    print('lane change:', eval_get_num_lane_change(penalty))
+    print('follower speed:', eval_get_follower_rel_speed(follower_state))
+    ##########
+
     print("Time:{}, Reward: {}".format(tok-tik, total_reward))
 
 
@@ -96,7 +121,7 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         save_params(file_path, time_data, configs)
     else:
         agent.load_weight(file_path, time_data)
-
+    best_reward=0.0
     for epoch in range(configs['EXP_CONFIGS']['start_epoch'], configs['EXP_CONFIGS']['epochs']):
         traci.start(sumoCmd)
         step = 0.0
@@ -121,15 +146,10 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         # Tensorboard 가져오기
         #show_actions(writer, action, num_agent, step,act_list)
         update_tensorBoard(writer, agent, env, epoch, configs,act_list)
-        agent.save_weight(epoch)
+        agent.save_weight(epoch,best_reward,total_reward)
+        best_reward=max(best_reward,total_reward)
         epoch += 1
-        
-        # ##########
-        # print('avg speed: ',eval_get_avg_speed(speed_state))
-        # print('lane change:', eval_get_num_lane_change(penalty))
-        # print('follower speed:', eval_get_follower_rel_speed(follower_state))
-        # ##########
-        
+                
         print("Epoch: {}, Time:{}, Reward: {}".format(epoch, tok-tik, total_reward))
     writer.close()
 
@@ -144,6 +164,19 @@ def simulate(flags,device, configs, sumoBinary, sumoConfig):
     env.init()
     traci.simulation.subscribe()
     step = 0.0
+    ##########
+    gen_agent_num = len(env.gen_agent_list)
+    speed_state = torch.zeros(
+        (gen_agent_num, 3), dtype=torch.float, device=env.device)
+
+    prev_lane = torch.zeros(
+        (gen_agent_num, 1), dtype=torch.float, device=env.device)
+    penalty = torch.zeros(
+        (gen_agent_num, 1), dtype=torch.float, device=env.device)
+
+    follower_state= torch.zeros(
+        (gen_agent_num, 3), dtype=torch.float, device=env.device)
+    ##########
     while step < configs['EXP_CONFIGS']['max_steps']:
         
         env.add_agent(step)
@@ -151,8 +184,17 @@ def simulate(flags,device, configs, sumoBinary, sumoConfig):
         env.agent_update()
 
         step += STEP_LENGTH
-    
+        ###########
+        eval_set_avg_speed(env, speed_state)
+        eval_set_num_lane_change(env, penalty, prev_lane)
+        eval_set_follower_rel_speed(env, follower_state)
+        ###########    
     traci.close()
+    ##########
+    print('avg speed: ',eval_get_avg_speed(speed_state))
+    print('lane change:', eval_get_num_lane_change(penalty))
+    print('follower speed:', eval_get_follower_rel_speed(follower_state))
+    ##########
 
 
 def main(args):

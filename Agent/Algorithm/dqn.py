@@ -49,7 +49,7 @@ class DQN():
         self.experience_replay = ReplayMemory(
             configs['experience_replay_size'],self.transition)
         self.criterion = nn.MSELoss()
-        self.optimizer = optim.Adam(
+        self.optimizer = optim.Adadelta(
             self.behaviorQ.parameters(), lr=configs['lr'])
         self.epsilon = configs['epsilon']
         self.lr_scheduler = optim.lr_scheduler.StepLR(
