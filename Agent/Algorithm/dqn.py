@@ -35,13 +35,14 @@ class QNetwork(nn.Module):
 
 
 class DQN():
-    def __init__(self, input_size, output_size, device, configs):
+    def __init__(self, input_size, output_size,mode, device, configs):
         self.configs = configs
         self.device = device
         self.behaviorQ = QNetwork(input_size, output_size, configs)
         self.behaviorQ.to(self.device)
         self.targetQ = QNetwork(input_size, output_size, configs)
         self.targetQ.to(self.device)
+        self.mode=mode
         hard_update(self.targetQ, self.behaviorQ)
         
         self.transition = namedtuple('Transition',
@@ -60,12 +61,18 @@ class DQN():
         self.running_loss = 0
 
     def get_action(self, state):
-        if random.random() > self.epsilon:  # epsilon greedy
+        if self.mode=='train':
+            if random.random() > self.epsilon :  # epsilon greedy
+                with torch.no_grad():
+                    q = self.behaviorQ(state)
+                    action = torch.max(q, dim=1)[1]
+            else:
+                action = torch.tensor([random.randint(0, 2)], device=self.device)
+        else: # 학습이 아닐때
             with torch.no_grad():
                 q = self.behaviorQ(state)
                 action = torch.max(q, dim=1)[1]
-        else:
-            action = torch.tensor([random.randint(0, 2)], device=self.device)
+
         return action.view(1, 1)
 
     def save_replay(self, state, action, reward, next_state):

@@ -60,17 +60,18 @@ class Critic(nn.Module):
 
 
 class DDPG():
-    def __init__(self, input_size, output_size, device, configs):
+    def __init__(self, input_size, output_size, mode,device, configs):
         self.configs = configs
         self.device = device
-        self.gamma = configs['gamma']
+        self.mode=mode 
         
+        self.gamma = configs['gamma']
         self.actor = Actor(input_size, output_size, configs['actor'])
         self.actor.to(self.device)
         self.actor_target = Actor(input_size, output_size, configs['critic'])
         self.actor_target.to(self.device)
-        self.actor_optim = optim.SGD(
-            self.actor.parameters(), configs['actor']['lr'],momentum=0.9,weight_decay=5e-4)
+        self.actor_optim = optim.Adadelta(
+            self.actor.parameters(), configs['actor']['lr'],weight_decay=5e-4)
         self.actor_lr_scheduler = optim.lr_scheduler.StepLR(
             self.actor_optim, step_size=configs['actor']['lr_decaying_epoch'], gamma=configs['actor']['lr_decaying_rate'])
         hard_update(self.actor_target, self.actor)
@@ -79,14 +80,15 @@ class DDPG():
         self.critic.to(self.device)
         self.critic_target = Critic(input_size, output_size, configs['critic'])
         self.critic_target.to(self.device)
-        self.critic_optim = optim.SGD(
-            self.critic.parameters(), configs['critic']['lr'],momentum=0.9,weight_decay=5e-4)
+        self.critic_optim = optim.Adadelta(
+            self.critic.parameters(), configs['critic']['lr'],weight_decay=5e-4)
         self.critic_lr_scheduler = optim.lr_scheduler.StepLR(
             self.critic_optim, step_size=configs['critic']['lr_decaying_epoch'], gamma=configs['critic']['lr_decaying_rate'])
         hard_update(self.critic_target, self.critic)
 
         self.action_noise = OrnsteinUhlenbeckProcess(
             size=output_size, theta=configs['ou']['theta'], mu=configs['ou']['mu'], sigma=configs['ou']['sigma'])
+        self.noise_scale=self.configs['initial_noise_scale']
 
         self.action_top = self.configs['action_space'][1]
         self.action_down = self.configs['action_space'][0]
@@ -103,7 +105,7 @@ class DDPG():
 
     def get_action(self, state):
         self.actor.eval()
-        if self.configs['init_train_ddpg']>=len(self.experience_replay):
+        if self.configs['init_train_ddpg']>=len(self.experience_replay)and self.mode=='train':
             mu=torch.randn([state.size()[0],1]).to(self.device)
         else:
             with torch.no_grad():
@@ -111,8 +113,8 @@ class DDPG():
                 self.actor.train()
                 mu = mu.data*self.action_top
 
-                if self.action_noise is not None:
-                    noise = torch.Tensor(self.action_noise.sample()).to(
+                if self.action_noise is not None and self.mode !='test':
+                    noise = torch.Tensor(self.action_noise.sample()*self.noise_scale).to(
                         self.device)
                     mu += noise
         mu = mu.clamp(self.action_down, self.action_top)
@@ -187,3 +189,7 @@ class DDPG():
     def hyperparams_update(self):
         self.actor_lr_scheduler.step()
         self.critic_lr_scheduler.step()
+        if self.noise_scale<self.configs['final_noise_scale']:
+            self.noise_scale=self.configs['final_noise_scale']
+        else:
+            self.noise_scale*=self.configs['noise_reduce_rate']

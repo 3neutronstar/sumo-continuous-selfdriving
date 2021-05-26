@@ -23,11 +23,12 @@ class BaseAgent():
 
         from Agent.Algorithm.dqn import DQN
         from Agent.Algorithm.ddpg import DDPG
+        self.mode=configs['mode']
 
         self.dqn_model = DQN(
-            self.state_size, configs['AGENT_CONFIGS']['dqn']['action_space'], device, configs['AGENT_CONFIGS']['dqn'])
+            self.state_size, configs['AGENT_CONFIGS']['dqn']['action_space'],self.mode, device, configs['AGENT_CONFIGS']['dqn'])
         self.ddpg_model = DDPG(
-            self.state_size+1, 1, device, configs['AGENT_CONFIGS']['ddpg'])
+            self.state_size+1, 1, self.mode,device, configs['AGENT_CONFIGS']['ddpg'])
 
         self.dqn_loss = 0
         self.ddpg_value_loss = 0
@@ -51,6 +52,7 @@ class BaseAgent():
         writer.add_scalar('ddpg/value_loss',self.ddpg_value_loss/self.max_steps,epoch)
         writer.add_scalar('ddpg/policy_loss',self.ddpg_policy_loss/self.max_steps,epoch)
         writer.add_scalar('ddpg/total_loss',(self.ddpg_value_loss+self.ddpg_policy_loss)/self.max_steps,epoch)
+        print("DQN LOSS:{} DDPG VALUE LOSS:{} POLICY LOSS:{}".format(self.dqn_loss,self.ddpg_value_loss,self.ddpg_policy_loss))
         self.dqn_loss = 0
         self.ddpg_value_loss = 0
         self.ddpg_policy_loss = 0
@@ -70,6 +72,7 @@ class BaseAgent():
                 self.file_path, 'training_data', self.time_data, 'critic_DDPG.pt'))
             torch.save(self.ddpg_model.critic_target.state_dict(), os.path.join(
                 self.file_path, 'training_data', self.time_data, 'critic_targetDDPG.pt'))
+            print("Model Save")
 
     def load_weight(self, time_data):
         self.dqn_model.behaviorQ.load_state_dict(torch.load(

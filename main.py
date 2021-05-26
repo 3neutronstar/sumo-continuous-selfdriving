@@ -258,6 +258,7 @@ def main(args):
         train(time_data, device, configs, sumoBinary, sumoConfig)
 
     elif flags.mode.lower() == 'test':
+        configs['mode']='test'
         sumoConfig = os.path.join(  # time인지 file_name인지 명시
             file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
         test(flags, device, configs, sumoBinary, sumoConfig)
