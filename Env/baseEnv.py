@@ -205,17 +205,17 @@ class Env():
     # Return distance from leading car, -1 if none
     def leader(self, agent):
         try:
-            leadDistance = traci.vehicle.getLeader(agent, 0.0)[1]
+            leadDistance = min(traci.vehicle.getLeader(agent, 0.0)[1],100)
         except TypeError:
-            leadDistance = -1.0
+            leadDistance = 100.0
         return leadDistance
 
     # Return distance from following car, -1 if none
     def follower(self, agent):
         try:
-            followDistance = traci.vehicle.getFollower(agent, 0.0)[1]
+            followDistance = min(traci.vehicle.getFollower(agent, 0.0)[1],100)
         except TypeError:
-            followDistance = -1.0
+            followDistance = 100.0
         return followDistance
 
     def get_observ_list(self):
@@ -385,8 +385,6 @@ class Env():
         # print(next_node,tl_state)
         return tl_state
 
-    
-
     def mapping_tl(self, cur_edge, next_node):
         tl_dict = dict()
         
@@ -402,10 +400,10 @@ class Env():
             tl_state = 0
         elif tl_dict[cur_edge] == 'yyyyy': #대기
             tl_state = 1
-        elif tl_dict[cur_edge] == 'ggggr': #직진
-            tl_state = 2        
         elif tl_dict[cur_edge] == 'grrrg': #좌/우회전
-            tl_state = 3
+            tl_state = 2
+        elif tl_dict[cur_edge] == 'ggggr': #직진
+            tl_state = 3        
         
         return tl_state 
     

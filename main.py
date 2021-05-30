@@ -99,7 +99,7 @@ def test(time_data, device, configs, sumoBinary, sumoConfig):
     print('follower speed:', eval_get_follower_rel_speed(follower_state))
     ##########
 
-    print("Time:{}, Reward: {}".format(tok-tik, total_reward))
+    print("Time:{:.3f}, Reward: {:.3f}".format(tok-tik, total_reward))
 
 
 def train(time_data, device, configs, sumoBinary, sumoConfig):
@@ -139,8 +139,10 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
             agent.save_replay(state, action, reward, next_state, num_agent)
             agent.update(epoch, num_agent)
             state = next_state
+            # print(state)
             total_reward += reward.sum()
         traci.close()
+        print('='*30)
         tok = time.time()
         agent.hyperparams_update()
         # Tensorboard 가져오기
@@ -150,7 +152,8 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         best_reward=max(best_reward,total_reward)
         epoch += 1
                 
-        print("Epoch: {}, Time:{}, Reward: {}".format(epoch, tok-tik, total_reward))
+        print("Epoch: {:4d}, Time:{:.3f}, Reward: {:.3f}".format(epoch, tok-tik, total_reward))
+        print('='*30)
     writer.close()
 
 

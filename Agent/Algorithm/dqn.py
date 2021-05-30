@@ -50,8 +50,8 @@ class DQN():
         self.experience_replay = ReplayMemory(
             configs['experience_replay_size'],self.transition)
         self.criterion = nn.MSELoss()
-        self.optimizer = optim.Adadelta(
-            self.behaviorQ.parameters(), lr=configs['lr'])
+        self.optimizer = optim.Adam(
+            self.behaviorQ.parameters(), lr=configs['lr'],weight_decay=5e-4)
         self.epsilon = configs['epsilon']
         self.lr_scheduler = optim.lr_scheduler.StepLR(
             self.optimizer, configs['lr_decaying_epoch'], configs['lr_decaying_rate'])
@@ -72,6 +72,7 @@ class DQN():
             with torch.no_grad():
                 q = self.behaviorQ(state)
                 action = torch.max(q, dim=1)[1]
+                print(action)
 
         return action.view(1, 1)
 

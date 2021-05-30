@@ -70,7 +70,7 @@ class DDPG():
         self.actor.to(self.device)
         self.actor_target = Actor(input_size, output_size, configs['critic'])
         self.actor_target.to(self.device)
-        self.actor_optim = optim.Adadelta(
+        self.actor_optim = optim.Adam(
             self.actor.parameters(), configs['actor']['lr'],weight_decay=5e-4)
         self.actor_lr_scheduler = optim.lr_scheduler.StepLR(
             self.actor_optim, step_size=configs['actor']['lr_decaying_epoch'], gamma=configs['actor']['lr_decaying_rate'])
@@ -80,7 +80,7 @@ class DDPG():
         self.critic.to(self.device)
         self.critic_target = Critic(input_size, output_size, configs['critic'])
         self.critic_target.to(self.device)
-        self.critic_optim = optim.Adadelta(
+        self.critic_optim = optim.Adam(
             self.critic.parameters(), configs['critic']['lr'],weight_decay=5e-4)
         self.critic_lr_scheduler = optim.lr_scheduler.StepLR(
             self.critic_optim, step_size=configs['critic']['lr_decaying_epoch'], gamma=configs['critic']['lr_decaying_rate'])
