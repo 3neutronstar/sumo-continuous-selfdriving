@@ -55,7 +55,7 @@ class Env():
         self.observ_list = self.get_observ_list()
         self.route_dict = dict()
         self.agent_route_dict = dict()
-        self.prev_lane_idx=None
+        self.popup_action=None # action의 agent별 update 변화를 감당하는 action
 
     def init(self):
         state = self.collect_state()
@@ -78,30 +78,35 @@ class Env():
                 raise NotImplementedError
             self.agent_list.append(self.gen_agent_list[self.vehicle_gen_idx])
             self.num_agent += 1
-            add_tensor=torch.zeros((1,1),device=self.device,dtype=torch.int)
             
             self.agent_route_dict[self.gen_agent_list[self.vehicle_gen_idx]] = self.route_list[0]
+
+            add_tensor=torch.zeros((1,2),device=self.device,dtype=torch.int)
             if self.num_agent==1:
-                self.prev_lane_idx=add_tensor.clone()
+                self.popup_action=add_tensor.clone()
             else:
-                self.prev_lane_idx=torch.cat([self.prev_lane_idx,add_tensor],dim=0)
+                self.popup_action=torch.cat([self.popup_action,add_tensor],dim=0)
             self.vehicle_gen_idx+=1
 
-    # agent의 생성과 제거를 판단
+    # agent의 제거를 판단
     def agent_update(self):
         # 도착한 agent 제거
         arrived_list = traci.simulation.getArrivedIDList()
         agent_list=copy.deepcopy(self.agent_list)
         # tmp_num_agent=copy.deepcopy(self.num_agent)
 
-        mask_idx=torch.ones_like(self.prev_lane_idx,dtype=torch.bool).view(-1)
+        mask_idx=torch.ones(self.num_agent,dtype=torch.bool).view(-1)
         for idx, agent in enumerate(agent_list):
             if agent in arrived_list:
                 self.agent_list.remove(agent) # agent_list에서 도착 agent 제거
                 mask_idx[idx]=False
-                # self.num_agent -= 1
-        self.num_agent=mask_idx.sum()
-        self.prev_lane_idx=self.prev_lane_idx[mask_idx].detach().clone()
+        
+        self.num_agent=len(self.agent_list)
+        if self.popup_action is None: # before action setting
+            return
+        else:
+            self.popup_action=self.popup_action[mask_idx].detach().clone()
+
 
     def collect_state(self):
         next_state = torch.zeros(
@@ -137,14 +142,14 @@ class Env():
         # lanechange penalty
         penalty = torch.zeros(
             (self.num_agent, 1), dtype=torch.float, device=self.device)
-        current_lane = torch.zeros(
-            (self.num_agent, 1), dtype=torch.float, device=self.device)
-        for idx, agent in enumerate(self.agent_list):
-            current_lane[idx]=traci.vehicle.getLaneIndex(agent)
-        pen=torch.eq(current_lane,self.prev_lane_idx).view(-1,1)
-        if pen.size()[0]!=0: #0개의 size를 가지고 있지 않다면
-            penalty[~pen]+=1.0
-        self.prev_lane_idx=current_lane.clone()
+        if self.popup_action is None:
+            pass
+        else:
+            for idx,action in enumerate(self.popup_action):
+                lanechange_action=action[1]
+                if lanechange_action!=1:
+                    penalty[idx]+=1.0
+        return penalty
 
         # teleport penalty
         teleport_list=traci.simulation.getStartingTeleportIDList()
@@ -161,11 +166,12 @@ class Env():
     def step(self, action, step):
         # action mapping
         if self.num_agent != 0:
+            self.popup_action=action.detach().clone()
             for idx, agent in enumerate(self.agent_list):
                 currentSpeed = traci.vehicle.getSpeed(agent)
                 acc = action[idx, 0]
                 traci.vehicle.setSpeed(agent, currentSpeed+acc)
-                action[idx,1]=self.changeLaneAction(agent, int(action[idx, 1]))
+                self.changeLaneAction(agent, int(action[idx, 1]))
 
         # agent 투입
         self.add_agent(step)
@@ -183,7 +189,7 @@ class Env():
         reward = self.collect_reward()
         # penalty 생성
         penalty = self.collect_penalty()
-        if penalty==None and reward ==None :
+        if penalty==None and reward == None :
             return_reward=torch.tensor([0.0],dtype=torch.float,device=self.device)
         else:
             self.reward += (reward.sum()-penalty.sum())
@@ -241,25 +247,24 @@ class Env():
         if laneChangeAction-1 == 1:  # left
             lane = traci.vehicle.getLaneID(agent)
             if len(lane) == 0: # no lane
-                return 1.0
+                return
             if lane[-1] == str(traci.edge.getLaneNumber(lane[:-2])-1):
-                laneChangeAction = 1.0
+                return
             else:
                 traci.vehicle.changeLaneRelative(agent, 1, 0)
         elif laneChangeAction-1 == -1:  # right
             lane = traci.vehicle.getLaneID(agent)
             if len(lane) == 0:# no lane
-                return 1.0
+                return
             if lane[-1] == str(0):
-                laneChangeAction = 1.0
+                return
             else:
                 traci.vehicle.changeLaneRelative(agent, -1, 0)
         elif laneChangeAction-1 == 0:  # straight
             # traci.vehicle.changeLaneRelative(agent, 0, 0)
-            pass
+            return
         else:
             raise NotImplementedError
-        return float(laneChangeAction)
 
 
     # direction은 [current edge]-[surrounding edge]-[probability]의 순으로 구성된 중첩 dictionary

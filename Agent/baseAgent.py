@@ -52,6 +52,7 @@ class BaseAgent():
         writer.add_scalar('ddpg/value_loss',self.ddpg_value_loss/self.max_steps,epoch)
         writer.add_scalar('ddpg/policy_loss',self.ddpg_policy_loss/self.max_steps,epoch)
         writer.add_scalar('ddpg/total_loss',(self.ddpg_value_loss+self.ddpg_policy_loss)/self.max_steps,epoch)
+        writer.add_scalar('ddpg/noise_scale',self.ddpg_model.noise_scale,epoch)
         print("DQN LOSS:{:.7f} DDPG VALUE LOSS:{:.7f} POLICY LOSS:{:.7f}".format(self.dqn_loss/self.max_steps,self.ddpg_value_loss/self.max_steps,self.ddpg_policy_loss/self.max_steps))
         self.dqn_loss = 0.0
         self.ddpg_value_loss = 0.0
