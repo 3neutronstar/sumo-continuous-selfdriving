@@ -162,8 +162,7 @@ class DDPG():
 
         # actor network update
         self.actor_optim.zero_grad()
-        policy_loss = -self.critic(state_batch, self.actor(state_batch))
-        policy_loss = policy_loss.mean()
+        policy_loss = -self.critic(state_batch, self.actor(state_batch)).mean()
         policy_loss.backward()
         self.actor_optim.step()
 

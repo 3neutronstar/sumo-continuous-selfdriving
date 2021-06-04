@@ -72,7 +72,6 @@ class DQN():
             with torch.no_grad():
                 q = self.behaviorQ(state)
                 action = torch.max(q, dim=1)[1]
-                print(action)
 
         return action.view(1, 1)
 
@@ -86,7 +85,6 @@ class DQN():
 
         transitions = self.experience_replay.sample(self.configs['batch_size'])
         batch = self.transition(*zip(*transitions))
-
         # 최종 상태가 아닌 마스크를 계산하고 배치 요소를 연결
         non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
                                                 batch.next_state)), device=self.device, dtype=torch.bool)
@@ -112,7 +110,7 @@ class DQN():
             non_final_next_states).detach().max(1)
         # next_state_values[non_final_mask] = self.targetQ(non_final_next_states).max(1)[0].detach()  # .to(self.device)  # 자신의 Q value 중에서max인 value를 불러옴
         next_state_values[non_final_mask], next_action = tmp[0], tmp[1].view(
-            -1, 1)
+            -1, 1).clone()
 
         # 기대 Q 값 계산
         expected_state_action_values = (

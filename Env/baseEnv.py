@@ -149,7 +149,6 @@ class Env():
                 lanechange_action=action[1]
                 if lanechange_action!=1:
                     penalty[idx]+=1.0
-        return penalty
 
         # teleport penalty
         teleport_list=traci.simulation.getStartingTeleportIDList()
@@ -214,7 +213,7 @@ class Env():
             leadDistance = min(traci.vehicle.getLeader(agent, 0.0)[1],100)
         except TypeError:
             leadDistance = 100.0
-        return leadDistance
+        return leadDistance/100.0
 
     # Return distance from following car, -1 if none
     def follower(self, agent):
@@ -222,7 +221,7 @@ class Env():
             followDistance = min(traci.vehicle.getFollower(agent, 0.0)[1],100)
         except TypeError:
             followDistance = 100.0
-        return followDistance
+        return followDistance/100.0
 
     def get_observ_list(self):
         #observ = list()
