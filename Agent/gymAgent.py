@@ -1,6 +1,7 @@
 import gym
 import torch
 import numpy as np
+from torch.utils.tensorboard import SummaryWriter
 class GymLearner():
     def __init__(self,flags,device,configs):
         self.device=device
@@ -26,8 +27,8 @@ class GymLearner():
         self.configs['action_space'] = env.action_space
         self.configs['state_size'] = 3
         add_dict={
-        'actor': {'fc': [200, 100, 100], 'lr': 1e-4, 'lr_decaying_epoch': 50, 'lr_decaying_rate': 0.8, 'tau': 0.005},
-        'critic': {'fc': [200, 100, 100], 'lr': 1e-3, 'lr_decaying_epoch': 50, 'lr_decaying_rate': 0.8, 'tau': 0.005},
+        'actor': {'fc': [200, 100, 100], 'lr': 1e-4, 'lr_decaying_epoch': 50, 'lr_decaying_rate': 0.8, 'tau': 0.05},
+        'critic': {'fc': [200, 100, 100], 'lr': 1e-3, 'lr_decaying_epoch': 50, 'lr_decaying_rate': 0.8, 'tau': 0.05},
         'experience_replay_size': 1e5,
         'batch_size': 64,
         'ou': {'theta': 0.15, 'sigma': 0.2, 'mu': 0.0},
@@ -46,9 +47,10 @@ class GymLearner():
             from Agent.Algorithm.ddpg import DDPG
         else:
             raise NotImplementedError
-        learner = DDPG(self.configs['state_size'],1,self.device,self.configs)
+        learner = DDPG(self.configs['state_size'],1,self.configs['mode'],self.device,self.configs)
         t = 0
         reward = 0
+        writer=SummaryWriter('./training_data/gym/')
         for e in range(number_of_episodes):
             state = env.reset()
             t = 0
@@ -57,6 +59,8 @@ class GymLearner():
             Return = 0
             while not done:
                 t += 1
+                if e >=298:
+                    env.render()
                 action = learner.get_action(state)
 
                 next_state, reward, done, _ = env.step(action.cpu())
@@ -70,6 +74,10 @@ class GymLearner():
             # if e % 10 == 0:
             #     learner.target_update()
 
+            writer.add_scalar('value_loss',loss[0],e)
+            writer.add_scalar('policy_loss',loss[1],e)
+            writer.add_scalar('reward',Return,e)
+            writer.flush()
             print('Episode ' + str(e) + ' ended in ' +
                 str(t) + ' time steps, reward: ', str(Return))
             print("loss: {}".format(loss))
