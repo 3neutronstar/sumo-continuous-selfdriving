@@ -104,12 +104,11 @@ class DDQN():
         next_state_values = torch.zeros(
             self.configs['batch_size'], device=self.device, dtype=torch.float)
             
-        tmp = self.behaviorQ(
-            non_final_next_states).detach().max(1)
             
-        next_state_values[non_final_mask], _ = tmp[0], tmp[1].view(
-            -1, 1).clone()
-
+        #next_state_values[non_final_mask] = self.targetQ(non_final_next_states).detach().max(1)[0]#DQN #target의 q에서 맥스를 사용
+        behavior_action=torch.argmax(self.behaviorQ(non_final_next_states),dim=1,keepdim=True)
+        next_state_values[non_final_mask] = self.targetQ(non_final_next_states).detach().gather(dim=1,index=behavior_action).view(-1)#DDQN # behavior Q에서 max action을 사용하여 target Q value 가짐
+        
         # 기대 Q 값 계산
         expected_state_action_values = (
             next_state_values * self.configs['gamma']) + reward_batch
