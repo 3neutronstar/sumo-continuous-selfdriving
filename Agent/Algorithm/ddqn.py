@@ -34,7 +34,7 @@ class QNetwork(nn.Module):
         return nn.Sequential(*layers)
 
 
-class DQN():
+class DDQN():
     def __init__(self, input_size, output_size,mode, device, configs):
         self.configs = configs
         self.device = device
@@ -99,17 +99,15 @@ class DQN():
         # Q(s_t, a) 계산 - 모델이 Q(s_t)를 계산하고, 취한 행동의 칼럼을 선택
         state_action_values = self.behaviorQ(
             state_batch).gather(1, action_batch[:, 1].view(-1, 1).to(torch.int64))  # for 3D
-        # state_action_values = self.behaviorQ(
-        #     state_batch)
-        # .max(1)[0].clone().float().unsqueeze(1)
 
         # 모든 다음 상태를 위한 V(s_{t+1}) 계산
         next_state_values = torch.zeros(
             self.configs['batch_size'], device=self.device, dtype=torch.float)
-        tmp = self.targetQ(
+            
+        tmp = self.behaviorQ(
             non_final_next_states).detach().max(1)
-        # next_state_values[non_final_mask] = self.targetQ(non_final_next_states).max(1)[0].detach()  # .to(self.device)  # 자신의 Q value 중에서max인 value를 불러옴
-        next_state_values[non_final_mask], next_action = tmp[0], tmp[1].view(
+            
+        next_state_values[non_final_mask], _ = tmp[0], tmp[1].view(
             -1, 1).clone()
 
         # 기대 Q 값 계산
@@ -119,20 +117,23 @@ class DQN():
         # loss 계산
         loss = self.criterion(state_action_values,
                               expected_state_action_values.unsqueeze(1))
-        self.running_loss += loss
+
+
+        self.running_loss += loss.item()
+
         # 모델 최적화
         self.optimizer.zero_grad()
         loss.backward()
         for param in self.behaviorQ.parameters():
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
-        return next_action, loss.detach().clone()
+        return loss.detach().clone()
 
     def hyperparams_update(self):
         self.lr_scheduler.step()
         if self.epsilon > self.final_epsilon:
             self.epsilon *= self.epsilon_decaying_rate
-    
+            
     def target_update(self,epoch):
         # target update
         if self.configs['update_type'] == 'soft':
