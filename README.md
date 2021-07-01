@@ -1,5 +1,5 @@
-# sumo_edgecloud
-Reinforcement Learning based autonomous driving system connected with edge-cloud
+# sumo_continuous-selfdriving
+Reinforcement Learning based autonomous driving system(Continuous and Discrete combined)
 
 
 ### Contributor
