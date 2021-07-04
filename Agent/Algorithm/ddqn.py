@@ -34,7 +34,7 @@ class QNetwork(nn.Module):
         return nn.Sequential(*layers)
 
 
-class DQN():
+class DDQN():
     def __init__(self, input_size, output_size,mode, device, configs):
         self.configs = configs
         self.device = device
@@ -103,12 +103,12 @@ class DQN():
         # 모든 다음 상태를 위한 V(s_{t+1}) 계산
         next_state_values = torch.zeros(
             self.configs['batch_size'], device=self.device, dtype=torch.float)
-        tmp = self.targetQ(
-            non_final_next_states).detach().max(1)
-        # next_state_values[non_final_mask] = self.targetQ(non_final_next_states).max(1)[0].detach()  # .to(self.device)  # 자신의 Q value 중에서max인 value를 불러옴
-        next_state_values[non_final_mask], next_action = tmp[0], tmp[1].view(
-            -1, 1).clone()
-
+            
+            
+        #next_state_values[non_final_mask] = self.targetQ(non_final_next_states).detach().max(1)[0]#DQN #target의 q에서 맥스를 사용
+        behavior_action=torch.argmax(self.behaviorQ(non_final_next_states),dim=1,keepdim=True)
+        next_state_values[non_final_mask] = self.targetQ(non_final_next_states).detach().gather(dim=1,index=behavior_action).view(-1)#DDQN # behavior Q에서 max action을 사용하여 target Q value 가짐
+        
         # 기대 Q 값 계산
         expected_state_action_values = (
             next_state_values * self.configs['gamma']) + reward_batch
@@ -116,20 +116,23 @@ class DQN():
         # loss 계산
         loss = self.criterion(state_action_values,
                               expected_state_action_values.unsqueeze(1))
-        self.running_loss += loss
+
+
+        self.running_loss += loss.item()
+
         # 모델 최적화
         self.optimizer.zero_grad()
         loss.backward()
         for param in self.behaviorQ.parameters():
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
-        return next_action, loss.detach().clone()
+        return loss.detach().clone()
 
     def hyperparams_update(self):
         self.lr_scheduler.step()
         if self.epsilon > self.final_epsilon:
             self.epsilon *= self.epsilon_decaying_rate
-    
+            
     def target_update(self,epoch):
         # target update
         if self.configs['update_type'] == 'soft':

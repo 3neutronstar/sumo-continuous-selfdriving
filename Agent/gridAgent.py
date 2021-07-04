@@ -1,4 +1,4 @@
-from Agent.baseAgent import BaseAgent
+from Agent.crossAgent import DDPGAgent
 import torch
 
 AGENT_CONFIGS = {
@@ -26,10 +26,11 @@ AGENT_CONFIGS = {
 }
 
 
-class GridAgent(BaseAgent):
+class GridAgent(DDPGAgent):
     def __init__(self, file_path, time_data, device, configs):
-        configs['AGENT_CONFIGS'] = AGENT_CONFIGS
-        super(BaseAgent, self).__init__(file_path, time_data, device, configs)
+        if configs['mode'] != 'load_train':
+            configs['AGENT_CONFIGS'] = AGENT_CONFIGS
+        super(DDPGAgent, self).__init__(file_path, time_data, device, configs)
 
     def get_action(self, states):
         actions = list()

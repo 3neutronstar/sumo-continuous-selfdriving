@@ -149,6 +149,7 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         print('='*30)
         tok = time.time()
         agent.hyperparams_update()
+        agent.target_update(epoch)
         # Tensorboard 가져오기
         #show_actions(writer, action, num_agent, step,act_list)
         update_tensorBoard(writer, agent, env, epoch, configs,act_list)
