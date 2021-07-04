@@ -81,3 +81,9 @@ class GymLearner():
             print('Episode ' + str(e) + ' ended in ' +
                 str(t) + ' time steps, reward: ', str(Return))
             print("loss: {}".format(loss))
+
+class RLlibGymLearner:
+    def __init__(self,configs):
+        self.configs=configs
+    
+    def run(self):

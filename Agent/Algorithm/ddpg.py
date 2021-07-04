@@ -105,7 +105,7 @@ class DDPG():
 
     def get_action(self, state):
         self.actor.eval()
-        if self.configs['init_train_ddpg']>=len(self.experience_replay)and self.mode=='train':
+        if self.mode=='train' and self.configs['init_train_ddpg']>=len(self.experience_replay):
             mu=torch.randn([state.size()[0],1]).to(self.device)
         else:
             with torch.no_grad():

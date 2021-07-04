@@ -22,8 +22,8 @@ def parse_args(args):
 
     # 기본 옵션
     parser.add_argument('mode', type=str, choices=[
-                        'train', 'simulate', 'test', 'load_train','gym'])
-    if parser.parse_known_args(args)[0].mode.lower()=='gym':
+                        'train', 'simulate', 'test', 'load_train','gym','train_rllib','test_rllib','gym_rllib'])
+    if 'gym' in parser.parse_known_args(args)[0].mode.lower():
         parser.add_argument('--algorithm',type=str,default='ddpg',choices=['ddpg','dqn'])
 
     # 추가 옵션
@@ -86,6 +86,7 @@ def test(time_data, device, configs, sumoBinary, sumoConfig):
         eval_set_avg_speed(env, speed_state)
         eval_set_num_lane_change(env, penalty, prev_lane)
         eval_set_follower_rel_speed(env, follower_state)
+        print(state, action)
         ###########
         state = next_state
         total_reward += reward.sum()
@@ -122,6 +123,7 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
     else:
         agent.load_weight(file_path, time_data)
     best_reward=0.0
+
     for epoch in range(configs['EXP_CONFIGS']['start_epoch'], configs['EXP_CONFIGS']['epochs']):
         traci.start(sumoCmd)
         step = 0.0
@@ -130,11 +132,13 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         total_reward = 0.0
         tik = time.time()
         act_list = list()
+
         while step < configs['EXP_CONFIGS']['max_steps']:
             action = agent.get_action(state, num_agent)
             next_state, reward, num_agent = env.step(action, step)
             step += STEP_LENGTH
             # arrived_vehicles += 해주는 과정 필요
+            
             show_actions(writer, action, epoch, step,act_list)
             agent.save_replay(state, action, reward, next_state, num_agent)
             agent.update(epoch, num_agent)
@@ -265,12 +269,17 @@ def main(args):
         sumoConfig = os.path.join(  # time인지 file_name인지 명시
             file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
         test(flags, device, configs, sumoBinary, sumoConfig)
-    elif flags.mode.lower() =='gym':
+    elif 'gym' == flags.mode.lower():
         from Agent.gymAgent import GymLearner
         learner=GymLearner(flags,device,configs)
         learner.run()
-
         return
+    elif 'rllib' in flags.model.lower():
+        from rllib import RLLibImplementor
+        sumoConfig = os.path.join(
+            file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
+        implementor=RLLibImplementor(flags,device,configs,sumoBinary,sumoConfig)
+        implementor.run()
 
     else:  # simulate
         sumoConfig = os.path.join(
