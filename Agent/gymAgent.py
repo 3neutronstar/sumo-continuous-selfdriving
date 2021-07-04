@@ -110,7 +110,14 @@ class RLlibGymLearner:
 
         from ray import tune
         from ray.rllib.agents import dqn
+        from ray.rllib.agents.dqn import DEFAULT_CONFIG
+        DEFAULT_CONFIG['framework']='torch'
+        if self.configs['mode']:
+            DEFAULT_CONFIG['double_q']=False
+        else:
+            DEFAULT_CONFIG['double_q']=True
         import ray
-        AGENT_CONFIG={'dqn':dqn.DQNTrainer}
+        AGENT_CONFIG={'dqn':dqn.DQNTrainer,
+        'ddqn':dqn.DQNTrainer(config=DEFAULT_CONFIG,env='CartPole-v0')}
         agent=AGENT_CONFIG[self.configs['algorithm']]
         tune.run(agent, config={"env": "CartPole-v0","framework":"torch"})
