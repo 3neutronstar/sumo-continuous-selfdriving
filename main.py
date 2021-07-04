@@ -24,7 +24,7 @@ def parse_args(args):
     parser.add_argument('mode', type=str, choices=[
                         'train', 'simulate', 'test', 'load_train','gym','train_rllib','test_rllib','gym_rllib'])
     if 'gym' in parser.parse_known_args(args)[0].mode.lower():
-        parser.add_argument('--algorithm',type=str,default='ddpg',choices=['ddpg','dqn'])
+        parser.add_argument('--algorithm',type=str,default='ddpg',choices=['ddpg','dqn','ppo'])
 
     # 추가 옵션
     # choose road network
@@ -212,7 +212,6 @@ def main(args):
     file_path = os.path.dirname(os.path.abspath(__file__))
     time_data = time.strftime('%m-%d_%H-%M-%S', time.localtime(time.time()))
     # file name
-
     #seed
     random_seed = flags.seed
     random.seed(random_seed)
@@ -246,9 +245,7 @@ def main(args):
         # configs['mode'] == 'train'
     else:  # simulate or train
         configs = DEFAULT_CONFIGS
-        # Argument 호출
-        configs['network'] = flags.network.lower()
-        configs['mode'] = flags.mode.lower()
+        configs.update(vars(flags))
         configs['time_data'] = time_data
         #configs['agent'] = flags.agent.lower()
         # 어떤 네트워크인지 체크
@@ -264,9 +261,7 @@ def main(args):
         sumoConfig = os.path.join(
             file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
         train(time_data, device, configs, sumoBinary, sumoConfig)
-
     elif flags.mode.lower() == 'test':
-        configs['mode']='test'
         sumoConfig = os.path.join(  # time인지 file_name인지 명시
             file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
         test(flags, device, configs, sumoBinary, sumoConfig)
@@ -275,13 +270,12 @@ def main(args):
         learner=GymLearner(flags,device,configs)
         learner.run()
         return
-    elif 'rllib' in flags.model.lower():
+    elif 'rllib' in flags.mode.lower():
         from rllib import RLLibImplementor
         sumoConfig = os.path.join(
             file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
         implementor=RLLibImplementor(flags,device,configs,sumoBinary,sumoConfig)
         implementor.run()
-
     else:  # simulate
         sumoConfig = os.path.join(
             file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가

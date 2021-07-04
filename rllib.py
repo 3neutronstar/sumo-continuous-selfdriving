@@ -9,12 +9,12 @@ class RLLibImplementor:
         self.sumoConfigs=sumoConfigs
 
     def run(self):
-        if 'gym' in self.configs:
+        if 'gym' in self.configs['mode']:
             gym_learner=RLlibGymLearner(self.configs)
             gym_learner.run()
-        elif 'test' in self.configs:
+        elif 'test' in self.configs['mode']:
             self._test()
-        elif 'train' in self.configs:
+        elif 'train' in self.configs['mode']:
             self._train()
 
     def _test(self):

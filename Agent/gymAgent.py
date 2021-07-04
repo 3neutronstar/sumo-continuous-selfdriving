@@ -87,3 +87,30 @@ class RLlibGymLearner:
         self.configs=configs
     
     def run(self):
+        if self.configs['algorithm']=='ddpg' or self.configs['algorithm']=='ppo':
+            self._continuous_run()
+        elif self.configs['algorithm']=='dqn':
+            self._discrete_run()
+
+    def _continuous_run(self):
+        import ray
+        from ray import tune
+        from ray.rllib.agents import ppo,ddpg
+        torch.device('cpu')
+        AGENT_CONFIG={
+            'ddpg':ddpg.DDPGTrainer,
+            'ppo':ppo.PPOTrainer,
+        }
+        agent=AGENT_CONFIG[self.configs['algorithm']]
+        ray.init(num_cpus=1,num_gpus=0)
+        tune.run(agent, config={"env": "MountainCarContinuous-v0","framework":"torch"})
+
+        return
+    def _discrete_run(self):
+
+        from ray import tune
+        from ray.rllib.agents import dqn
+        import ray
+        AGENT_CONFIG={'dqn':dqn.DQNTrainer}
+        agent=AGENT_CONFIG[self.configs['algorithm']]
+        tune.run(agent, config={"env": "CartPole-v0","framework":"torch"})
