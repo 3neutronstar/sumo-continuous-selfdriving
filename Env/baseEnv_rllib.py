@@ -24,7 +24,7 @@ import os
 from xml.etree.ElementTree import parse
 import ray
 from ray.rllib.agents import ppo
-
+import gym
 ENV_CONFIGS = {
     'state_space': 9,
     'action_size': 2,
@@ -32,17 +32,17 @@ ENV_CONFIGS = {
     'route_list':['route_{}'.format(i) for i in range(3)]
 }
 
-class Env():
-    def __init__(self, file_path, device, configs):
+class Env(gym.Env):
+    def __init__(self, file_path, device, env_configs):
         ##환경 설정
-        if configs['mode'] != 'load_train':
-            configs['ENV_CONFIGS'] = ENV_CONFIGS
-        self.mode=configs['mode']
+        if env_configs['mode'] != 'load_train':
+            env_configs['ENV_CONFIGS'] = ENV_CONFIGS
+        self.mode=env_configs['mode']
         self.device = device
         self.file_path = file_path        
         
         ##학습 설정
-        self.env_configs = configs['ENV_CONFIGS']
+        self.env_configs = env_configs['ENV_CONFIGS']
         self.agent_list = list()
         self.gen_agent_list = self.env_configs['gen_agent_list']
         self.vehicle_gen_idx=0

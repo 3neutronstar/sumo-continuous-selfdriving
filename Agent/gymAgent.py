@@ -96,16 +96,26 @@ class RLlibGymLearner:
         import ray
         from ray import tune
         from ray.rllib.agents import ppo,ddpg
-        torch.device('cpu')
-        AGENT_CONFIG={
-            'ddpg':ddpg.DDPGTrainer,
-            'ppo':ppo.PPOTrainer,
+        ray.init(num_cpus=4,num_gpus=1,local_mode=True)
+        configs={
+            'num_gpus':1,
+            'num_workers':4,
+            # 'num_gpus_per_worker':1,
+            'framework':'torch',
+            "simple_optimizer":True,
         }
-        agent=AGENT_CONFIG[self.configs['algorithm']]
-        ray.init(num_cpus=1,num_gpus=0)
-        tune.run(agent, config={"env": "MountainCarContinuous-v0","framework":"torch"})
+        AGENT_CONFIG={
+            'ddpg':ddpg.DDPGTrainer(config=configs,env="MountainCarContinuous-v0"),
+            'ppo':ppo.PPOTrainer(config=configs,env="MountainCarContinuous-v0"),
+        }
+        trainer=AGENT_CONFIG[self.configs['algorithm']]
+        # tune.run(agent, config={"env": "MountainCarContinuous-v0","framework":"torch","num_gpus":0,})
+        for i in range(2000): # 2000epoch
+            result=trainer.train()#1 epoch
+            print(result)
 
         return
+
     def _discrete_run(self):
 
         from ray import tune
