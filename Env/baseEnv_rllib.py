@@ -60,7 +60,7 @@ class Env(gym.Env):
         self.num_lane = self.get_edge_from_edg_xml()[0]
         self.num_edge = self.get_edge_from_edg_xml()[1]
         self.action_space = Discrete(15)
-        self.observation_space = Box(low=np.array[0, 0, 0, -1, -1, 0, -1, 0, 0], high=np.array[10, 1, 1, 100, 100, self.num_lane, self.num_edge, 1, 3], dtype= np.float)
+        self.observation_space = Box(low=np.array([0, 0, 0, -1, -1, 0, -1, 0, 0]), high=np.array([10, 1, 1, 100, 100, self.num_lane, self.num_edge, 1, 3]), dtype= np.float32)
         
         #obs: speed(0, 10)/laneRight(0, 1)/laneLeft(0, 1)/leader(-1, 100)/follower(-1, 100)/
         #currentLane(index(int))/currentEdge(-1, index(int))/direction(0, 1)/trafficLight(0, 3)
@@ -97,7 +97,7 @@ class Env(gym.Env):
         # reward 생성
         reward = self.calculate_reward()
 
-        return state, reward, done #<info>
+        return state, reward, done, dict() #<info>
 
 
     """functions used in env steps"""
@@ -198,7 +198,7 @@ class Env(gym.Env):
         agent_state = list()
         
         for agent in self.gen_agent_list:
-            for observ in self.oberv_list:
+            for observ in self.observ_list:
                 agent_state.append(observ(agent))
                 state[agent] = agent_state
         return state
@@ -474,7 +474,7 @@ class Env(gym.Env):
 
         num_lanes = list()
         for edge in edges:
-            num_lanes.append(edge.attrib['numLanes'])
+            num_lanes.append(int(edge.attrib['numLanes']))
         
         num_lane = max(num_lanes)-1 #lane index는 0부터 시작됨
         num_edge = len(edges)-1 #edge index는 0부터 시작됨
