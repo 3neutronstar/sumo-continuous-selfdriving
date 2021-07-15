@@ -60,7 +60,7 @@ class Env(gym.Env):
         self.num_lane = self.get_edge_from_edg_xml()[0]
         self.num_edge = self.get_edge_from_edg_xml()[1]
         self.action_space = Discrete(15)
-        self.observation_space = spaces.Box(low=np.array[0, 0, 0, -1, -1, 0, -1, 0, 0], high=np.array[10, 1, 1, 100, 100, self.num_lane, self.num_edge, 1, 3], dtype= np.float)
+        self.observation_space = Box(low=np.array[0, 0, 0, -1, -1, 0, -1, 0, 0], high=np.array[10, 1, 1, 100, 100, self.num_lane, self.num_edge, 1, 3], dtype= np.float)
         
         #obs: speed(0, 10)/laneRight(0, 1)/laneLeft(0, 1)/leader(-1, 100)/follower(-1, 100)/
         #currentLane(index(int))/currentEdge(-1, index(int))/direction(0, 1)/trafficLight(0, 3)
@@ -259,7 +259,7 @@ class Env(gym.Env):
         return reward
 
 
-"""Observation related functions"""
+    """Observation related functions"""
     # check if agent can change to right lane (bool)
     def changeLaneRight(self, agent):
         changeLaneInfo = traci.vehicle.couldChangeLane(agent, -1)
