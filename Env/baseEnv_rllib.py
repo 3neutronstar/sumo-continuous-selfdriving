@@ -22,9 +22,11 @@ import torch
 import traci
 import os
 from xml.etree.ElementTree import parse
-import ray
-from ray.rllib.agents import ppo
+from gym.spaces import Discrete, Box
 import gym
+import ray
+import numpy as np
+
 ENV_CONFIGS = {
     'state_space': 9,
     'action_size': 2,
@@ -54,32 +56,31 @@ class Env(gym.Env):
         self.observ_list = self.get_observ_list()
         self.route_dict = dict()
         self.agent_route_dict = dict()
-        self.popup_action = None # action의 agent별 update 변화를 감당하는 action
+        #self.popup_action = None # action의 agent별 update 변화를 감당하는 action
+        self.num_lane = self.get_edge_from_edg_xml()[0]
+        self.num_edge = self.get_edge_from_edg_xml()[1]
+        self.action_space = Discrete(15)
+        self.observation_space = spaces.Box(low=np.array[0, 0, 0, -1, -1, 0, -1, 0, 0], high=np.array[10, 1, 1, 100, 100, self.num_lane, self.num_edge, 1, 3], dtype= np.float)
+        
+        #obs: speed(0, 10)/laneRight(0, 1)/laneLeft(0, 1)/leader(-1, 100)/follower(-1, 100)/
+        #currentLane(index(int))/currentEdge(-1, index(int))/direction(0, 1)/trafficLight(0, 3)
 
 
-    def init(self):
+
+    def reset(self):
         state = self.collect_state()
         for id in traci.route.getIDList():
             self.route_dict[id] = traci.route.getEdges(id)
 
-        return state, self.num_agent
-
-    '''
-    #reset 부는 rllib 구조상 필요할 수 있어서 추후에 추가 예정
-    def reset(self):
-        state = dict()
         return state
-    '''
+
 
     def step(self, action, step):
         # action mapping
         if self.num_agent != 0:
-            self.popup_action=action.detach().clone()
+            #self.popup_action=action.detach().clone()
             for idx, agent in enumerate(self.agent_list):
-                currentSpeed = traci.vehicle.getSpeed(agent)
-                acc = action[idx, 0]
-                traci.vehicle.setSpeed(agent, currentSpeed+acc)
-                self.changeLaneAction(agent, int(action[idx, 1]))
+                self.apply_action(agent, int(action[idx, 0]))
 
         # agent 투입
         self.add_agent(step)
@@ -88,7 +89,7 @@ class Env(gym.Env):
         traci.simulationStep()
 
         # agent의 생성이나 제거를 판단
-        self.agent_update()
+        done = self.agent_update()
 
         # next_state 생성
         state = self.collect_state()
@@ -96,9 +97,50 @@ class Env(gym.Env):
         # reward 생성
         reward = self.calculate_reward()
 
-        return state, reward, self.num_agent
+        return state, reward, done #<info>
 
 
+    """functions used in env steps"""
+        #좌:[0,1,2,3,4], 우:[5,6,7,8,9], 직:[10,11,12,13,14]
+    def apply_action(self, agent, action):
+        lane = traci.vehicle.getLaneID(agent)
+        currentSpeed = traci.vehicle.getSpeed(agent)
+        
+        # direction
+        if action in range (0,4): #left
+            if len(lane) == 0: #no lane
+                return
+            if lane[-1] == str(traci.edge.getLaneNumber(lane[:-2])-1): #unable to change lane
+                return
+            else:
+                traci.vehicle.changeLaneRelative(agent, 1, 0)
+        elif action in range (5,9): #right
+            if len(lane) == 0:
+                return
+            if lane[-1] == str(0):
+                return
+            else:
+                traci.vehicle.changeLaneRelative(agent, -1, 0)
+        elif action in range(10,14): #straight
+            return
+        else:
+            raise NotImplementedError
+        
+        # velocity
+        if action%5 == 0: #0, 5, 10
+            traci.vehicle.setSpeed(agent, currentSpeed-2)
+        elif action%5 == 1:
+            traci.vehicle.setSpeed(agent, currentSpeed-1)
+        elif action%5 == 2:
+            traci.vehicle.setSpeed(agent, currentSpeed)
+        elif action%5 == 3:
+            traci.vehicle.setSpeed(agent, currentSpeed+1)
+        elif action%5 == 4:
+            traci.vehicle.setSpeed(agent, currentSpeed+2)
+        else:
+            raise NotImplementedError
+    
+    
     # gen_agent_list에 존재하는 agent를 50 timestep 단위로 투입후 agent_list에 추가
     def add_agent(self, step):
         if step >= float(50*self.vehicle_gen_idx) and self.vehicle_gen_idx < len(self.gen_agent_list):
@@ -117,10 +159,10 @@ class Env(gym.Env):
             self.agent_route_dict[self.gen_agent_list[self.vehicle_gen_idx]] = self.route_list[0]
 
             add_tensor=torch.zeros((1,2),device=self.device,dtype=torch.int)
-            if self.num_agent==1:
-                self.popup_action = add_tensor.clone()
-            else:
-                self.popup_action = torch.cat([self.popup_action,add_tensor],dim=0)
+            #if self.num_agent==1:
+            #    self.popup_action = add_tensor.clone()
+            #else:
+            #    self.popup_action = torch.cat([self.popup_action,add_tensor],dim=0)
             self.vehicle_gen_idx+=1
 
     # agent의 제거를 판단
@@ -128,7 +170,9 @@ class Env(gym.Env):
         # 도착한 agent 제거
         arrived_list = traci.simulation.getArrivedIDList()
         agent_list=copy.deepcopy(self.agent_list)
-        # tmp_num_agent=copy.deepcopy(self.num_agent)
+        
+        done = dict()
+        done['__all__'] = False
 
         mask_idx=torch.ones(self.num_agent,dtype=torch.bool).view(-1)
         for idx, agent in enumerate(agent_list):
@@ -137,30 +181,36 @@ class Env(gym.Env):
                 mask_idx[idx]=False
         
         self.num_agent=len(self.agent_list)
-        if self.popup_action is None: # before action setting
-            return
-        else:
-            self.popup_action=self.popup_action[mask_idx].detach().clone()
+        #if self.popup_action is None: # before action setting
+        #    return
+        #else:
+        #    self.popup_action=self.popup_action[mask_idx].detach().clone()
 
+        for idx, agent in enumerate(self.gen_agent_list):
+            if agent in arrived_list:
+                done[agent] = True
+        
+        return done
+                
 
     def collect_state(self):
         state = dict()
         agent_state = list()
         
-        for agent in self.agent_list:
+        for agent in self.gen_agent_list:
             for observ in self.oberv_list:
                 agent_state.append(observ(agent))
                 state[agent] = agent_state
         return state
+
 
     def collect_pos_reward(self):
         if len(self.agent_list) == 0:
             return None
         
         pos_reward = dict()
-        for agent in self.agent_list:
+        for agent in self.gen_agent_list:
             pos_reward[agent] = max(traci.vehicle.getSpeed(agent), 0.0)       
-        
         return pos_reward
     
     def collect_neg_reward(self, prev_lane): #prev_lane은 main()에 위치한 변수, utils.py의 eval_set_num_lane_change()에서 활용
@@ -204,18 +254,18 @@ class Env(gym.Env):
         neg_reward = self.collect_neg_reward()
         reward = dict()
         
-        for agent in self.agent_list: 
+        for agent in self.gen_agent_list: 
             reward[agent] += pos_reward[agent]-neg_reward[agent]
         return reward
 
 
-##Observation related functions
-    # check if agent can change to right lane
+"""Observation related functions"""
+    # check if agent can change to right lane (bool)
     def changeLaneRight(self, agent):
         changeLaneInfo = traci.vehicle.couldChangeLane(agent, -1)
         return changeLaneInfo
 
-    # check if agent can change to left lane
+    # check if agent can change to left lane (bool)
     def changeLaneLeft(self, agent):
         changeLaneInfo = traci.vehicle.couldChangeLane(agent, 1)
         return changeLaneInfo
@@ -254,30 +304,30 @@ class Env(gym.Env):
     def getSpeed(self,agent):
         velocity=traci.vehicle.getSpeed(agent)
         return max(velocity,0.0)
-
-    def changeLaneAction(self, agent, laneChangeAction):
-        if laneChangeAction-1 == 1:  # left
-            lane = traci.vehicle.getLaneID(agent)
-            if len(lane) == 0: # no lane
-                return
-            if lane[-1] == str(traci.edge.getLaneNumber(lane[:-2])-1):
+    '''
+        def changeLaneAction(self, agent, laneChangeAction):
+            if laneChangeAction-1 == 1:  # left
+                lane = traci.vehicle.getLaneID(agent)
+                if len(lane) == 0: # no lane
+                    return
+                if lane[-1] == str(traci.edge.getLaneNumber(lane[:-2])-1):
+                    return
+                else:
+                    traci.vehicle.changeLaneRelative(agent, 1, 0)
+            elif laneChangeAction-1 == -1:  # right
+                lane = traci.vehicle.getLaneID(agent)
+                if len(lane) == 0:# no lane
+                    return
+                if lane[-1] == str(0):
+                    return
+                else:
+                    traci.vehicle.changeLaneRelative(agent, -1, 0)
+            elif laneChangeAction-1 == 0:  # straight
+                # traci.vehicle.changeLaneRelative(agent, 0, 0)
                 return
             else:
-                traci.vehicle.changeLaneRelative(agent, 1, 0)
-        elif laneChangeAction-1 == -1:  # right
-            lane = traci.vehicle.getLaneID(agent)
-            if len(lane) == 0:# no lane
-                return
-            if lane[-1] == str(0):
-                return
-            else:
-                traci.vehicle.changeLaneRelative(agent, -1, 0)
-        elif laneChangeAction-1 == 0:  # straight
-            # traci.vehicle.changeLaneRelative(agent, 0, 0)
-            return
-        else:
-            raise NotImplementedError
-
+                raise NotImplementedError
+    '''
 
     # direction은 [current edge]-[surrounding edge]-[probability]의 순으로 구성된 중첩 dictionary
     # junction_edges는 map의 모든 junction에 대해 [junction(node)_id]-[surrounding edge]의 순으로 구성된 dictionary
@@ -403,8 +453,6 @@ class Env(gym.Env):
         tl_dict['D_to_C'] = all_tl[10:15].lower()
         tl_dict['L_to_C'] = all_tl[15:20].lower() #실제 사용될 tl
 
-
-
         if tl_dict[cur_edge] == 'rrrrr': #정지
             tl_state = 0
         elif tl_dict[cur_edge] == 'yyyyy': #대기
@@ -414,5 +462,21 @@ class Env(gym.Env):
         elif tl_dict[cur_edge] == 'ggggr': #직진
             tl_state = 3        
         
-        return tl_state 
-    
+        return tl_state
+
+
+    def get_edge_from_edg_xml(self):
+        add_file_path = os.path.join(
+            self.file_path, 'Net_data', self.file_name + '.edg.xml')
+        net_tree = parse(add_file_path)
+        
+        edges = net_tree.findall('edge')
+
+        num_lanes = list()
+        for edge in edges:
+            num_lanes.append(edge.attrib['numLanes'])
+        
+        num_lane = max(num_lanes)-1 #lane index는 0부터 시작됨
+        num_edge = len(edges)-1 #edge index는 0부터 시작됨
+
+        return num_edge, num_lane
