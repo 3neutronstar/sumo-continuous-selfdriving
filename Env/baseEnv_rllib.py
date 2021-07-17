@@ -16,10 +16,11 @@ action -> (agent갯수(1) * (action_size(2)) tensor
 reward -> (agent갯수(1)) * (1) tensor
 '''
 
+from Env.sumo import SUMOSimulationWrapper
 import copy
 import random
 import torch
-import traci
+import libsumo as traci
 import os
 from xml.etree.ElementTree import parse
 from gym.spaces import Discrete, Box
@@ -64,14 +65,21 @@ class Env(gym.Env):
         
         #obs: speed(0, 10)/laneRight(0, 1)/laneLeft(0, 1)/leader(-1, 100)/follower(-1, 100)/
         #currentLane(index(int))/currentEdge(-1, index(int))/direction(0, 1)/trafficLight(0, 3)
-
+        from rllibsumoutils.sumoutils import DEFAULT_CONFIG as SUMO_CONFIGS
+        SUMO_CONFIGS['end_of_sim']=3600
+        SUMO_CONFIGS['sumo_cfg']=os.path.join(self.file_path,'Net_data',self.file_name+'.sumocfg')
+        self.simulation=None
+        self.sumo_configs=SUMO_CONFIGS
 
 
     def reset(self):
+        if self.simulation:
+            del self.simulation
+        self.simulation=SUMOSimulationWrapper(self.sumo_configs)
+        self.add_agent(0)
         state = self.collect_state()
         for id in traci.route.getIDList():
             self.route_dict[id] = traci.route.getEdges(id)
-
         return state
 
 
@@ -97,7 +105,7 @@ class Env(gym.Env):
         # reward 생성
         reward = self.calculate_reward()
 
-        return state, reward, done, dict() #<info>
+        return state, reward, done, np.array([0]) #<info>
 
 
     """functions used in env steps"""
@@ -197,7 +205,7 @@ class Env(gym.Env):
         state = dict()
         agent_state = list()
         
-        for agent in self.gen_agent_list:
+        for agent in self.agent_list:
             for observ in self.observ_list:
                 agent_state.append(observ(agent))
                 state[agent] = agent_state
@@ -209,7 +217,7 @@ class Env(gym.Env):
             return None
         
         pos_reward = dict()
-        for agent in self.gen_agent_list:
+        for agent in self.agent_list:
             pos_reward[agent] = max(traci.vehicle.getSpeed(agent), 0.0)       
         return pos_reward
     
@@ -221,20 +229,20 @@ class Env(gym.Env):
         
         #lanechange
         current_lane = torch.zeros(
-            (len(self.gen_agent_list), 1), dtype=torch.float, device=self.device)
+            (len(self.agent_list), 1), dtype=torch.float, device=self.device)
 
-        for idx, agent in enumerate(self.gen_agent_list):
+        for idx, agent in enumerate(self.agent_list):
             if agent in self.agent_list:
                 current_lane[idx] = traci.vehicle.getLaneIndex(agent)
         
         diff = torch.eq(current_lane, prev_lane)
 
-        for i, agent in enumerate(self.gen_agent_list):
+        for i, agent in enumerate(self.agent_list):
             if diff[i] == False:
                 neg_reward[agent] += 1.0
 
         #current_lane tensor를 prev_lane으로 copy할 시 for문을 이용하지 않으면 전역변수임에도 불구하고 제대로 process 되지 않는 문제가 발생
-        for i in range (len(self.gen_agent_list)):
+        for i in range (len(self.agent_list)):
             prev_lane[i] = current_lane[i] 
 
         #teleport
@@ -254,7 +262,7 @@ class Env(gym.Env):
         neg_reward = self.collect_neg_reward()
         reward = dict()
         
-        for agent in self.gen_agent_list: 
+        for agent in self.agent_list: 
             reward[agent] += pos_reward[agent]-neg_reward[agent]
         return reward
 

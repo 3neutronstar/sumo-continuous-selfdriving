@@ -4,7 +4,7 @@ from ray.tune.registry import register_env
 import torch
 import gym
 from Agent.gymAgent import RLlibGymLearner
-import traci
+import libsumo as traci
 class RLLibImplementor:
     def __init__(self,flags,device,configs,sumoBinary,sumoConfig):
         self.device=device
@@ -31,7 +31,7 @@ class RLLibImplementor:
         sumoCmd = [self.sumoBinary, "-c", self.sumoConfig,"--step-length",str(STEP_LENGTH)]
         from Env.baseEnv_rllib import Env
         from ray.rllib.agents import dqn
-        from ray.rllib.contrib.sumo import SUMOUtils
+
         def env_creator(env_config):
             return Env(env_config['file_path'],env_config['device'],env_config['configs'])
         register_env("sumoenv",env_creator)
@@ -57,13 +57,9 @@ class RLLibImplementor:
             'horizon':3000,
             })
         for e in range(1,self.configs['epochs']+1):
-            traci.start(sumoCmd)
-            print(traci.simulation.getStartingTeleportIDList())#연결됨
             trainer.train()#안됨
-            traci.close()
         return
         # 목표1: 연결시키기 (sumo랑 ray랑)
         # 목표2: for e in range()돌아가는게 맞는지
         # 목표3: horizon없으면 epoch이 안끝나는걸로 아는데 맞는지 확인해주세요
         # 돌아가면 야호를 외쳐주세요
-        
