@@ -55,6 +55,15 @@ class RLLibImplementor:
             'num_workers':1,
             'framework':'torch',
             'horizon':3000,
+            "multiagent": {
+                # We only have one policy (calling it "shared").
+                # Class, obs/act-spaces, and config will be derived
+                # automatically.
+                "policies": {"shared_policy"},
+                # Always use "shared" policy.
+                "policy_mapping_fn": (
+                    lambda agent_id, episode, **kwargs: "shared_policy"),
+            },
             })
         for e in range(1,self.configs['epochs']+1):
             trainer.train()#안됨

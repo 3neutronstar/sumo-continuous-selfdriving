@@ -25,7 +25,7 @@ import os
 from xml.etree.ElementTree import parse
 from gym.spaces import Discrete, Box
 import gym
-import ray
+from ray.rllib.env import MultiAgentEnv
 import numpy as np
 
 ENV_CONFIGS = {
@@ -35,7 +35,7 @@ ENV_CONFIGS = {
     'route_list':['route_{}'.format(i) for i in range(3)]
 }
 
-class Env(gym.Env):
+class Env(MultiAgentEnv):
     def __init__(self, file_path, device, env_configs):
         ##환경 설정
         if env_configs['mode'] != 'load_train':
@@ -77,9 +77,9 @@ class Env(gym.Env):
             del self.simulation
         self.simulation=SUMOSimulationWrapper(self.sumo_configs)
         self.add_agent(0)
-        state = self.collect_state()
         for id in traci.route.getIDList():
             self.route_dict[id] = traci.route.getEdges(id)
+        state = self.collect_state()
         return state
 
 
@@ -153,7 +153,7 @@ class Env(gym.Env):
     def add_agent(self, step):
         if step >= float(50*self.vehicle_gen_idx) and self.vehicle_gen_idx < len(self.gen_agent_list):
             random.shuffle(self.route_list)
-            if self.mode in ['train','load_train','test']:
+            if self.mode in ['train','load_train','test','train_rllib']:
                 traci.vehicle.add(vehID=self.gen_agent_list[self.vehicle_gen_idx], routeID=self.route_list[0],
                                     typeID='rl_agent', departLane='random')
             elif self.mode =='simulate':#'non_rl_'
@@ -209,7 +209,7 @@ class Env(gym.Env):
             for observ in self.observ_list:
                 agent_state.append(observ(agent))
                 state[agent] = agent_state
-        return state
+        return np.array(state)
 
 
     def collect_pos_reward(self):
@@ -435,7 +435,7 @@ class Env(gym.Env):
         return next_edge
     
     def get_cur_edge(self, agent):
-        index = max(traci.vehicle.getRouteIndex(agent), 0)        
+        index = max(traci.vehicle.getRouteIndex(agent), 0)
         cur_edge = self.route_dict[self.agent_route_dict[agent]][index]
         
         return cur_edge
