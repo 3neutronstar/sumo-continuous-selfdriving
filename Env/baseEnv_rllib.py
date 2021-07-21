@@ -60,8 +60,10 @@ class Env(MultiAgentEnv):
         #self.popup_action = None # action의 agent별 update 변화를 감당하는 action
         self.num_lane = self.get_edge_from_edg_xml()[0]
         self.num_edge = self.get_edge_from_edg_xml()[1]
-        self.action_space = Discrete(15)
-        self.observation_space = Box(low=np.array([0, 0, 0, -1, -1, 0, -1, 0, 0]), high=np.array([10, 1, 1, 100, 100, self.num_lane, self.num_edge, 1, 3]), dtype= np.float32)
+        self.action_space = gym.spaces.Discrete(15)
+       
+        self.observation_space = gym.spaces.MultiDiscrete([11, 2, 2, 102, 102, self.num_lane, self.num_edge, 2, 4])
+        #self.observation_space = gym.spaces.Box(low=np.array([0, 0, 0, -1, -1, 0, -1, 0, 0]), high=np.array([10, 1, 1, 100, 100, self.num_lane, self.num_edge, 1, 3]), dtype= np.float32)
         
         #obs: speed(0, 10)/laneRight(0, 1)/laneLeft(0, 1)/leader(-1, 100)/follower(-1, 100)/
         #currentLane(index(int))/currentEdge(-1, index(int))/direction(0, 1)/trafficLight(0, 3)
@@ -298,14 +300,14 @@ class Env(MultiAgentEnv):
         #observ = list()
         observ_list = [
             self.getSpeed,  #current speed of agent
-            self.changeLaneRight,  #whether agent can make lane change to right
-            self.changeLaneLeft,  #whether agent can make lane change to left
+            #self.changeLaneRight,  #whether agent can make lane change to right
+            #self.changeLaneLeft,  #whether agent can make lane change to left
             self.leader,  #distance between leading car
-            self.follower,  #distance between following car
-            traci.vehicle.getLaneIndex,  #index of current lane
-            traci.vehicle.getRouteIndex,  #index of current edge
-            self.get_direction,  #direction of agent
-            self.get_traffic_light #traffic light status of current edge
+            #self.follower,  #distance between following car
+            #traci.vehicle.getLaneIndex,  #index of current lane
+            #traci.vehicle.getRouteIndex,  #index of current edge
+            #self.get_direction,  #direction of agent
+            #self.get_traffic_light #traffic light status of current edge
         ]
         return observ_list
     
