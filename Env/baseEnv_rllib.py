@@ -23,7 +23,6 @@ import torch
 import libsumo as traci
 import os
 from xml.etree.ElementTree import parse
-from gym.spaces import Discrete, Box
 import gym
 from ray.rllib.env import MultiAgentEnv
 import numpy as np
@@ -62,9 +61,18 @@ class Env(MultiAgentEnv):
         self.num_edge = self.get_edge_from_edg_xml()[1]
         self.action_space = gym.spaces.Discrete(15)
        
+       #모든 차량(agent)에 동일한 obs space 적용하므로 단일 box형식의 정의 가능할 것으로 예상
+       #https://github.com/ray-project/ray/blob/master/rllib/examples/env/multi_agent.py
+       #https://github.com/ray-project/ray/blob/master/rllib/examples/simulators/sumo/marlenvironment.py#L402
+       #https://github.com/openai/gym/blob/master/gym/spaces/dict.py
+        self.observation_space = gym.spaces.Box(low=np.array([0, 0, 0, -1, -1, 0, -1, 0, 0]), high=np.array([10, 1, 1, 100, 100, self.num_lane, self.num_edge, 1, 3]), dtype= np.float32)
+        '''
         self.observation_space = gym.spaces.MultiDiscrete([11, 2, 2, 102, 102, self.num_lane, self.num_edge, 2, 4])
-        #self.observation_space = gym.spaces.Box(low=np.array([0, 0, 0, -1, -1, 0, -1, 0, 0]), high=np.array([10, 1, 1, 100, 100, self.num_lane, self.num_edge, 1, 3]), dtype= np.float32)
-        
+        self.observation_space = gym.spaces.Dict({
+            'speed': gym.spaces.Box(low=np.array([0, 0, 0, -1, -1, 0, -1, 0, 0]), high=np.array([10, 1, 1, 100, 100, self.num_lane, self.num_edge, 1, 3]), dtype= np.float32),
+            'lanechange': gym.spaces.Box(low=np.array([0, 0, 0, -1, -1, 0, -1, 0, 0]), high=np.array([10, 1, 1, 100, 100, self.num_lane, self.num_edge, 1, 3]), dtype= np.float32)
+        })
+        '''
         #obs: speed(0, 10)/laneRight(0, 1)/laneLeft(0, 1)/leader(-1, 100)/follower(-1, 100)/
         #currentLane(index(int))/currentEdge(-1, index(int))/direction(0, 1)/trafficLight(0, 3)
         from rllibsumoutils.sumoutils import DEFAULT_CONFIG as SUMO_CONFIGS
@@ -300,14 +308,14 @@ class Env(MultiAgentEnv):
         #observ = list()
         observ_list = [
             self.getSpeed,  #current speed of agent
-            #self.changeLaneRight,  #whether agent can make lane change to right
-            #self.changeLaneLeft,  #whether agent can make lane change to left
+            self.changeLaneRight,  #whether agent can make lane change to right
+            self.changeLaneLeft,  #whether agent can make lane change to left
             self.leader,  #distance between leading car
-            #self.follower,  #distance between following car
-            #traci.vehicle.getLaneIndex,  #index of current lane
-            #traci.vehicle.getRouteIndex,  #index of current edge
-            #self.get_direction,  #direction of agent
-            #self.get_traffic_light #traffic light status of current edge
+            self.follower,  #distance between following car
+            traci.vehicle.getLaneIndex,  #index of current lane
+            traci.vehicle.getRouteIndex,  #index of current edge
+            self.get_direction,  #direction of agent
+            self.get_traffic_light #traffic light status of current edge
         ]
         return observ_list
     
