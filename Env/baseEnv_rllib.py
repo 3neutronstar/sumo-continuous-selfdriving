@@ -59,12 +59,10 @@ class Env(MultiAgentEnv):
         #self.popup_action = None # action의 agent별 update 변화를 감당하는 action
         self.num_lane = self.get_edge_from_edg_xml()[0]
         self.num_edge = self.get_edge_from_edg_xml()[1]
-        self.action_space = gym.spaces.Discrete(15)
-       
-       #모든 차량(agent)에 동일한 obs space 적용하므로 단일 box형식의 정의 가능할 것으로 예상
-       #https://github.com/ray-project/ray/blob/master/rllib/examples/env/multi_agent.py
-       #https://github.com/ray-project/ray/blob/master/rllib/examples/simulators/sumo/marlenvironment.py#L402
-       #https://github.com/openai/gym/blob/master/gym/spaces/dict.py
+        #모든 차량(agent)에 동일한 obs space 적용하므로 단일 box형식의 정의 가능할 것으로 예상
+        #https://github.com/ray-project/ray/blob/master/rllib/examples/env/multi_agent.py
+        #https://github.com/ray-project/ray/blob/master/rllib/examples/simulators/sumo/marlenvironment.py#L402
+        #https://github.com/openai/gym/blob/master/gym/spaces/dict.py
         '''       observ_list = [
             self.getSpeed,  #current speed of agent
             self.changeLaneRight,  #whether agent can make lane change to right
@@ -76,7 +74,10 @@ class Env(MultiAgentEnv):
             self.getDirection,  #direction of agent
             self.getTrafficLight #traffic light status of current edge
         ]'''
-        self.observation_space = gym.spaces.Box(low=np.array([0, 0, 0, -1, -1, 0, 0, 0, 0]), high=np.array([10, 1, 1, 100, 100, self.num_lane, self.num_edge, 1, 3]), dtype= np.float32)
+        self.observation_spaces={'agent_{}'.format(num):gym.spaces.Box(low=np.array([0, 0, 0, -1, -1, 0, 0, 0, 0]), high=np.array([10, 1, 1, 100, 100, self.num_lane, self.num_edge, 1, 3]), dtype= np.float32) for num in range(len(self.gen_agent_list))}
+        self.action_spaces={'agent_{}'.format(num):gym.spaces.Discrete(15) for num in range(len(self.gen_agent_list))}
+        self.observation_space = self.observation_spaces['agent_0']
+        self.action_space = gym.spaces.Discrete(15)
         '''
         self.observation_space = gym.spaces.MultiDiscrete([11, 2, 2, 102, 102, self.num_lane, self.num_edge, 2, 4])
         self.observation_space = gym.spaces.Dict({

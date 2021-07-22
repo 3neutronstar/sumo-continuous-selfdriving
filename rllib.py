@@ -49,7 +49,7 @@ class RLLibImplementor:
         ray.init()
         rllib_env=Env(self.file_path,self.device,self.configs)
         policy_class=dqn_torch_policy
-        trainer=dqn.DQNTrainer(env='sumoenv',config={'env':Env,'env_config':{
+        trainer=dqn.DQNTrainer(env='sumoenv',config={'env':'sumoenv','env_config':{
                 'file_path':self.file_path,
                 'device':self.device,
                 'configs':self.configs
@@ -62,7 +62,7 @@ class RLLibImplementor:
                 # We only have one policy (calling it "shared").
                 # Class, obs/act-spaces, and config will be derived
                 # automatically.
-                "policies": {"shared_policy":(policy_class,rllib_env.observation_space,rllib_env.action_space)},
+                "policies": {"shared_policy"},
                 # Always use "shared" policy.
                 "policy_mapping_fn": (
                     lambda agent_id, episode, **kwargs: "shared_policy"),
