@@ -65,7 +65,18 @@ class Env(MultiAgentEnv):
        #https://github.com/ray-project/ray/blob/master/rllib/examples/env/multi_agent.py
        #https://github.com/ray-project/ray/blob/master/rllib/examples/simulators/sumo/marlenvironment.py#L402
        #https://github.com/openai/gym/blob/master/gym/spaces/dict.py
-        self.observation_space = gym.spaces.Box(low=np.array([0, 0, 0, -1, -1, 0, -1, 0, 0]), high=np.array([10, 1, 1, 100, 100, self.num_lane, self.num_edge, 1, 3]), dtype= np.float32)
+        '''       observ_list = [
+            self.getSpeed,  #current speed of agent
+            self.changeLaneRight,  #whether agent can make lane change to right
+            self.changeLaneLeft,  #whether agent can make lane change to left
+            self.getLeader,  #distance between leading car
+            self.getFollower,  #distance between following car
+            self.getLaneIndex, # index of current lane
+            self.getRouteIndex, #index of current edge
+            self.getDirection,  #direction of agent
+            self.getTrafficLight #traffic light status of current edge
+        ]'''
+        self.observation_space = gym.spaces.Box(low=np.array([0, 0, 0, -1, -1, 0, 0, 0, 0]), high=np.array([10, 1, 1, 100, 100, self.num_lane, self.num_edge, 1, 3]), dtype= np.float32)
         '''
         self.observation_space = gym.spaces.MultiDiscrete([11, 2, 2, 102, 102, self.num_lane, self.num_edge, 2, 4])
         self.observation_space = gym.spaces.Dict({
@@ -73,16 +84,17 @@ class Env(MultiAgentEnv):
             'lanechange': gym.spaces.Box(low=np.array([0, 0, 0, -1, -1, 0, -1, 0, 0]), high=np.array([10, 1, 1, 100, 100, self.num_lane, self.num_edge, 1, 3]), dtype= np.float32)
         })
         '''
-        #obs: speed(0, 10)/laneRight(0, 1)/laneLeft(0, 1)/leader(-1, 100)/follower(-1, 100)/
+        #obs: speed(0, 10)/laneRight(0, 1)/laneLeft(0, 1)/getLeader(-1, 100)/follower(-1, 100)/
         #currentLane(index(int))/currentEdge(-1, index(int))/direction(0, 1)/trafficLight(0, 3)
         from rllibsumoutils.sumoutils import DEFAULT_CONFIG as SUMO_CONFIGS
         SUMO_CONFIGS['end_of_sim']=3600
         SUMO_CONFIGS['sumo_cfg']=os.path.join(self.file_path,'Net_data',self.file_name+'.sumocfg')
         self.simulation=None
         self.sumo_configs=SUMO_CONFIGS
-
+        self.time_step=0
 
     def reset(self):
+        self.time_step=0
         if self.simulation:
             del self.simulation
         self.simulation=SUMOSimulationWrapper(self.sumo_configs)
@@ -93,7 +105,7 @@ class Env(MultiAgentEnv):
         return state
 
 
-    def step(self, action, step):
+    def step(self, action):
         # action mapping
         if self.num_agent != 0:
             #self.popup_action=action.detach().clone()
@@ -101,10 +113,11 @@ class Env(MultiAgentEnv):
                 self.apply_action(agent, int(action[idx, 0]))
 
         # agent 투입
-        self.add_agent(step)
+        self.add_agent(self.time_step)
 
         # action 적용
         traci.simulationStep()
+        self.time_step+=1
 
         # agent의 생성이나 제거를 판단
         done = self.agent_update()
@@ -218,8 +231,8 @@ class Env(MultiAgentEnv):
         for agent in self.agent_list:
             for observ in self.observ_list:
                 agent_state.append(observ(agent))
-                state[agent] = agent_state
-        return np.array(state)
+            state[agent] = np.array(agent_state)
+        return state
 
 
     def collect_pos_reward(self):
@@ -289,7 +302,7 @@ class Env(MultiAgentEnv):
         return changeLaneInfo
 
     # Return distance from leading car, -1 if none
-    def leader(self, agent):
+    def getLeader(self, agent):
         try:
             leadDistance = min(traci.vehicle.getLeader(agent, 0.0)[1],100)
         except TypeError:
@@ -297,7 +310,7 @@ class Env(MultiAgentEnv):
         return leadDistance/100.0
 
     # Return distance from following car, -1 if none
-    def follower(self, agent):
+    def getFollower(self, agent):
         try:
             followDistance = min(traci.vehicle.getFollower(agent, 0.0)[1],100)
         except TypeError:
@@ -310,15 +323,26 @@ class Env(MultiAgentEnv):
             self.getSpeed,  #current speed of agent
             self.changeLaneRight,  #whether agent can make lane change to right
             self.changeLaneLeft,  #whether agent can make lane change to left
-            self.leader,  #distance between leading car
-            self.follower,  #distance between following car
-            traci.vehicle.getLaneIndex,  #index of current lane
-            traci.vehicle.getRouteIndex,  #index of current edge
-            self.get_direction,  #direction of agent
-            self.get_traffic_light #traffic light status of current edge
+            self.getLeader,  #distance between leading car
+            self.getFollower,  #distance between following car
+            self.getLaneIndex, # index of current lane
+            self.getRouteIndex, #index of current edge
+            self.getDirection,  #direction of agent
+            self.getTrafficLight #traffic light status of current edge
         ]
         return observ_list
     
+    def getLaneIndex(self,agent):
+        lane_idx=traci.vehicle.getLaneIndex(agent)
+        lane_idx=max(lane_idx,0)
+        lane_idx=min(lane_idx,self.num_lane)
+        return lane_idx
+
+    def getRouteIndex(self,agent):
+        route_idx=traci.vehicle.getRouteIndex(agent)
+        route_idx=max(route_idx,-1)
+        route_idx=min(route_idx,self.num_edge)
+        return route_idx
     def getSpeed(self,agent):
         velocity=traci.vehicle.getSpeed(agent)
         return max(velocity,0.0)
@@ -350,7 +374,7 @@ class Env(MultiAgentEnv):
     # direction은 [current edge]-[surrounding edge]-[probability]의 순으로 구성된 중첩 dictionary
     # junction_edges는 map의 모든 junction에 대해 [junction(node)_id]-[surrounding edge]의 순으로 구성된 dictionary
 
-    def get_direction(self, agent):
+    def getDirection(self, agent):
         junction_edges = self.get_junction_from_net_xml()
         direction = dict()
         direction_key_sorted = list()
@@ -451,7 +475,7 @@ class Env(MultiAgentEnv):
         return cur_edge
     
     
-    def get_traffic_light(self, agent):
+    def getTrafficLight(self, agent):
         cur_edge = self.get_cur_edge(agent)
         next_node = 'n_' + cur_edge.split('_to_')[1]
 

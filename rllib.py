@@ -31,6 +31,7 @@ class RLLibImplementor:
         sumoCmd = [self.sumoBinary, "-c", self.sumoConfig,"--step-length",str(STEP_LENGTH)]
         from Env.baseEnv_rllib import Env
         from ray.rllib.agents import dqn
+        from ray.rllib.agents.dqn import dqn_torch_policy
 
         def env_creator(env_config):
             return Env(env_config['file_path'],env_config['device'],env_config['configs'])
@@ -46,6 +47,8 @@ class RLLibImplementor:
         ## tree 오류는 pip install dm-tree
 
         ray.init()
+        rllib_env=Env(self.file_path,self.device,self.configs)
+        policy_class=dqn_torch_policy
         trainer=dqn.DQNTrainer(env='sumoenv',config={'env':Env,'env_config':{
                 'file_path':self.file_path,
                 'device':self.device,
@@ -59,7 +62,7 @@ class RLLibImplementor:
                 # We only have one policy (calling it "shared").
                 # Class, obs/act-spaces, and config will be derived
                 # automatically.
-                "policies": {"shared_policy"},
+                "policies": {"shared_policy":(policy_class,rllib_env.observation_space,rllib_env.action_space)},
                 # Always use "shared" policy.
                 "policy_mapping_fn": (
                     lambda agent_id, episode, **kwargs: "shared_policy"),
