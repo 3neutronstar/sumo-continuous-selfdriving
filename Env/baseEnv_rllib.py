@@ -57,8 +57,7 @@ class Env(MultiAgentEnv):
         self.route_dict = dict()
         self.agent_route_dict = dict()
         #self.popup_action = None # action의 agent별 update 변화를 감당하는 action
-        self.num_lane = self.get_edge_from_edg_xml()[0]
-        self.num_edge = self.get_edge_from_edg_xml()[1]
+        self.num_lane,self.num_edge = self.get_edge_from_edg_xml()[0]
         #모든 차량(agent)에 동일한 obs space 적용하므로 단일 box형식의 정의 가능할 것으로 예상
         #https://github.com/ray-project/ray/blob/master/rllib/examples/env/multi_agent.py
         #https://github.com/ray-project/ray/blob/master/rllib/examples/simulators/sumo/marlenvironment.py#L402

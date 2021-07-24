@@ -56,6 +56,8 @@ class Env():
         self.route_dict = dict()
         self.agent_route_dict = dict()
         self.popup_action=None # action의 agent별 update 변화를 감당하는 action
+        self.num_lane,self.num_edge = self.get_edge_from_edg_xml()
+        
 
     def init(self):
         state = self.collect_state()
@@ -208,7 +210,7 @@ class Env():
         return changeLaneInfo
 
     # Return distance from leading car, -1 if none
-    def leader(self, agent):
+    def getLeader(self, agent):
         try:
             leadDistance = min(traci.vehicle.getLeader(agent, 0.0)[1],100)
         except TypeError:
@@ -216,7 +218,7 @@ class Env():
         return leadDistance/100.0
 
     # Return distance from following car, -1 if none
-    def follower(self, agent):
+    def getFollower(self, agent):
         try:
             followDistance = min(traci.vehicle.getFollower(agent, 0.0)[1],100)
         except TypeError:
@@ -226,17 +228,29 @@ class Env():
     def get_observ_list(self):
         #observ = list()
         observ_list = [
-            self.getSpeed,  # current speed of agent
-            self.changeLaneRight,  # whether agent can make lane change to right
-            self.changeLaneLeft,  # whether agent can make lane change to left
-            self.leader,  # distance between leading car
-            self.follower,  # distance between following car
-            traci.vehicle.getLaneIndex,  # index of current lane
-            traci.vehicle.getRouteIndex,  # index of current edge
-            self.get_direction,  # for 내 차량이 갈 방향
-            self.get_traffic_light
+            self.getSpeed,  #current speed of agent
+            self.changeLaneRight,  #whether agent can make lane change to right
+            self.changeLaneLeft,  #whether agent can make lane change to left
+            self.getLeader,  #distance between leading car
+            self.getFollower,  #distance between following car
+            self.getLaneIndex, # index of current lane
+            self.getRouteIndex, #index of current edge
+            self.getDirection,  #direction of agent
+            self.getTrafficLight #traffic light status of current edge
         ]
         return observ_list
+    
+    def getLaneIndex(self,agent):
+        lane_idx=traci.vehicle.getLaneIndex(agent)
+        lane_idx=max(lane_idx,0)
+        lane_idx=min(lane_idx,self.num_lane)
+        return lane_idx
+
+    def getRouteIndex(self,agent):
+        route_idx=traci.vehicle.getRouteIndex(agent)
+        route_idx=max(route_idx,-1)
+        route_idx=min(route_idx,self.num_edge)
+        return route_idx
     
     def getSpeed(self,agent):
         velocity=traci.vehicle.getSpeed(agent)
@@ -269,7 +283,7 @@ class Env():
     # direction은 [current edge]-[surrounding edge]-[probability]의 순으로 구성된 중첩 dictionary
     # junction_edges는 map의 모든 junction에 대해 [junction(node)_id]-[surrounding edge]의 순으로 구성된 dictionary
 
-    def get_direction(self, agent):
+    def getDirection(self, agent):
         junction_edges = self.get_junction_from_net_xml()
         direction = dict()
         direction_key_sorted = list()
@@ -378,7 +392,7 @@ class Env():
         return cur_edge
     
     
-    def get_traffic_light(self, agent):
+    def getTrafficLight(self, agent):
         cur_edge = self.get_cur_edge(agent)
         next_node = 'n_' + cur_edge.split('_to_')[1]
 
@@ -411,3 +425,18 @@ class Env():
         
         return tl_state 
     
+    def get_edge_from_edg_xml(self):
+        add_file_path = os.path.join(
+            self.file_path, 'Net_data', self.file_name + '.edg.xml')
+        net_tree = parse(add_file_path)
+        
+        edges = net_tree.findall('edge')
+
+        num_lanes = list()
+        for edge in edges:
+            num_lanes.append(int(edge.attrib['numLanes']))
+        
+        num_lane = max(num_lanes)-1 #lane index는 0부터 시작됨
+        num_edge = len(edges)-1 #edge index는 0부터 시작됨
+
+        return num_edge, num_lane
