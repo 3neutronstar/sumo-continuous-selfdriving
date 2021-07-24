@@ -170,7 +170,8 @@ class Env():
             self.popup_action=action.detach().clone()
             for idx, agent in enumerate(self.agent_list):
                 currentSpeed = traci.vehicle.getSpeed(agent)
-                acc = action[idx, 0]
+                acc = (action[idx, 0]-2.0)/2.0
+                print(acc)
                 traci.vehicle.setSpeed(agent, currentSpeed+acc)
                 self.changeLaneAction(agent, int(action[idx, 1]))
 
@@ -265,7 +266,7 @@ class Env():
                 return
             else:
                 traci.vehicle.changeLaneRelative(agent, 1, 0)
-        elif laneChangeAction-1 == -1:  # right
+        elif (laneChangeAction-1) == -1:  # right
             lane = traci.vehicle.getLaneID(agent)
             if len(lane) == 0:# no lane
                 return

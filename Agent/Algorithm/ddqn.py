@@ -1,5 +1,4 @@
 import torch
-from torch._C import device
 import torch.nn as nn
 import torch.nn.functional as f
 import torch.optim as optim
@@ -66,18 +65,19 @@ class DDQN():
                 with torch.no_grad():
                     q = self.behaviorQ(state)
                     action = torch.max(q, dim=1)[1]
+                print('manual',action)
             else:
-                action = torch.tensor([random.randint(0, 2)], device=self.device)
+                action = torch.tensor([random.randint(0, self.configs['action_space']-1)], device=self.device)
+                print('random',action)
         else: # 학습이 아닐때
             with torch.no_grad():
                 q = self.behaviorQ(state)
                 action = torch.max(q, dim=1)[1]
-
         return action.view(1, 1)
 
     def save_replay(self, state, action, reward, next_state):
         self.experience_replay.push(
-            state, action, reward, next_state)  # 0 index인 이유는 ddpg와 섞이기 때문
+            state.detach().clone(), action.detach().clone(), reward.detach().clone(), next_state.detach().clone())  # 0 index인 이유는 ddpg와 섞이기 때문
 
     def update(self, epoch):
         if len(self.experience_replay) < self.configs['batch_size']:
@@ -140,3 +140,8 @@ class DDQN():
         else:
             if epoch % self.configs['target_update_period'] == 0:
                 hard_update(self.targetQ, self.behaviorQ)
+    
+    def eval(self):
+        self.behaviorQ.eval()
+        self.targetQ.eval()
+        self.behaviorQ=self.targetQ

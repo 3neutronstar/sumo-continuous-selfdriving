@@ -11,8 +11,8 @@ def update_tensorBoard(writer, agent, env, epoch, configs,act_list):
     writer.add_scalar('episode/reward', env.reward.sum(),
                       epoch)
     actions=torch.cat(act_list,dim=0).T
-    dqn_tensor = actions[1]
-    ddpg_tensor = actions[0]
+    dqn_tensor = actions[1].float()
+    ddpg_tensor = actions[0].float()
 
     writer.add_scalar('action/dqn_mean', torch.mean(dqn_tensor), epoch)
     writer.add_scalar('action/dqn_var', torch.var(dqn_tensor), epoch)

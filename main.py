@@ -55,7 +55,8 @@ def test(time_data, device, configs, sumoBinary, sumoConfig):
     from Agent.baseAgent import MainAgent
 
     agent = MainAgent(file_path, time_data, device, configs).network
-    
+    agent.load_weight(time_data)
+    agent.eval()
     traci.start(sumoCmd)
     step = 0
     env = Env(file_path, device, configs)
@@ -75,21 +76,22 @@ def test(time_data, device, configs, sumoBinary, sumoConfig):
         (gen_agent_num, 3), dtype=torch.float, device=env.device)
     ##########
     tik = time.time()
-    while step < configs['EXP_CONFIGS']['max_steps']:
-        action = agent.get_action(state, num_agent)
-        next_state, reward, num_agent = env.step(action, step)
-        step += STEP_LENGTH
-        # arrived_vehicles += 해주는 과정 필요
-        #agent.save_replay(state, action, reward, next_state, num_agent)
-        #agent.update(epoch, num_agent)
-        ###########
-        eval_set_avg_speed(env, speed_state)
-        eval_set_num_lane_change(env, penalty, prev_lane)
-        eval_set_follower_rel_speed(env, follower_state)
-        print(state, action)
-        ###########
-        state = next_state
-        total_reward += reward.sum()
+    with torch.no_grad():
+        while step < configs['EXP_CONFIGS']['max_steps']:
+            action = agent.get_action(state, num_agent)
+            next_state, reward, num_agent = env.step(action, step)
+            step += STEP_LENGTH
+            # arrived_vehicles += 해주는 과정 필요
+            #agent.save_replay(state, action, reward, next_state, num_agent)
+            #agent.update(epoch, num_agent)
+            ###########
+            eval_set_avg_speed(env, speed_state)
+            eval_set_num_lane_change(env, penalty, prev_lane)
+            eval_set_follower_rel_speed(env, follower_state)
+            # print(state, action)
+            ###########
+            state = next_state
+            total_reward += reward.sum()
         
     traci.close()
     tok = time.time()
@@ -141,10 +143,11 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
             
             show_actions(writer, action, epoch, step,act_list)
             agent.save_replay(state, action, reward, next_state, num_agent)
-            agent.update(epoch, num_agent)
             state = next_state
             # print(state)
-            total_reward += reward.sum()
+            total_reward += reward.sum().data
+        for _ in range(int(step)):
+            agent.update(epoch, num_agent)
         traci.close()
         print('='*30)
         tok = time.time()
@@ -262,9 +265,10 @@ def main(args):
             file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
         train(time_data, device, configs, sumoBinary, sumoConfig)
     elif flags.mode.lower() == 'test':
+        configs['mode']='test'
         sumoConfig = os.path.join(  # time인지 file_name인지 명시
             file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
-        test(flags, device, configs, sumoBinary, sumoConfig)
+        test(flags.time_data, device, configs, sumoBinary, sumoConfig)
     elif 'gym' == flags.mode.lower():
         from Agent.gymAgent import GymLearner
         learner=GymLearner(flags,device,configs)

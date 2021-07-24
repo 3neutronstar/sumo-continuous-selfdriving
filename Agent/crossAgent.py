@@ -142,7 +142,7 @@ class DDPGAgent(BaseAgent):
 
 
 DDQN_AGENT_CONFIGS = {
-    'ddqn1': {
+    'ddqn1': { # direction
         'fc': [100, 100],
         'epsilon': 0.5,
         'epsilon_decaying_rate': 0.99,
@@ -159,7 +159,7 @@ DDQN_AGENT_CONFIGS = {
         'target_update_period': 20,
         'gym_mode':False,
     },
-    'ddqn2': {
+    'ddqn2': { # accel
         'fc': [100, 100],
         'epsilon': 0.5,
         'epsilon_decaying_rate': 0.99,
@@ -198,7 +198,7 @@ class DDQNAgent(BaseAgent):
                 # direction
                 ddqn_action1 = self.ddqn1.get_action(state.view(1, -1))
                 # accel
-                ddqn_action2 = (self.ddqn2.get_action(state.view(1,-1))-2)/2.0
+                ddqn_action2 = self.ddqn2.get_action(state.view(1,-1))
                 actions.append(torch.cat((ddqn_action2, ddqn_action1), dim=1))
         if len(actions) != 0:
             actions = torch.cat(actions, dim=0).detach().clone()
@@ -227,6 +227,8 @@ class DDQNAgent(BaseAgent):
         self.ddqn2.hyperparams_update()
 
     def save_weight(self, epoch,best_reward,total_reward):
+        self.ddqn1.optimizer.zero_grad()
+        self.ddqn2.optimizer.zero_grad()
         if epoch!=0 and best_reward<total_reward:
             torch.save(self.ddqn1.behaviorQ.state_dict(), os.path.join(
                 self.file_path, 'training_data', self.time_data, 'behaviorDDQN.pt'))
@@ -241,9 +243,14 @@ class DDQNAgent(BaseAgent):
 
     def load_weight(self, time_data):
         self.ddqn1.behaviorQ.load_state_dict(torch.load(
-            os.path.join(self.file_path, 'training_data', time_data, 'behaviorDQN.pt')))
+            os.path.join(self.file_path, 'training_data', time_data, 'behaviorDDQN.pt')))
         self.ddqn1.targetQ.load_state_dict(torch.load(
-            os.path.join(self.file_path, 'training_data', time_data, 'targetDQN.pt')))
+            os.path.join(self.file_path, 'training_data', time_data, 'targetDDQN.pt')))
+        self.ddqn2.behaviorQ.load_state_dict(torch.load(
+            os.path.join(self.file_path, 'training_data', time_data, 'behaviorDDQN2.pt')))
+        self.ddqn2.targetQ.load_state_dict(torch.load(
+            os.path.join(self.file_path, 'training_data', time_data, 'targetDDQN2.pt')))
+        print("load weight complete")
 
     def update_tensorboard(self, writer, epoch):
         writer.add_scalar('ddqn1/epsilon', self.ddqn1.epsilon, epoch)
@@ -261,6 +268,10 @@ class DDQNAgent(BaseAgent):
     def target_update(self,epoch):
         self.ddqn1.target_update(epoch)
         self.ddqn2.target_update(epoch)
+
+    def eval(self):
+        self.ddqn1.eval()
+        self.ddqn2.eval()
 
 
 class CrossAgent(DDQNAgent):
