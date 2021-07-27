@@ -236,6 +236,46 @@ class GridNetwork(BaseNetwork):
                 })
         return traffic_lights
 
+
+#재귀적 탐색 알고리즘
+    def rec_search(self, before_edge, edge_list, route, routes, n):
+        direction = ['u', 'r', 'd', 'l']
+        edge_temp = list()
+
+        for next_edge in edge_list:
+            if next_edge[:5] == before_edge[-5:] and next_edge[-5:] != before_edge[:5]:
+                edge_temp.append(next_edge) #이전 edge에 맞붙은 3개의 edge를 리스트화
+                
+                for edge in edge_temp:
+                    if edge[-1] in direction:
+                        routes.append({'id': 'route_'+str(n),
+                            'edges': route + ' ' + edge})
+                        n += 1
+                    else:
+                        route = route + ' ' + edge 
+                        self.rec_search(edge, edge_list, route, routes, n)
+
+
+    #define routes
+    #edge example: n_0_l_to_n_0_0 n_0_0_to_n_0_1(총 13)
+    def specify_route(self):
+        routes = list()
+        n = 0
+        direction = ['u', 'r', 'd', 'l']
+        edge_list_raw = self.specify_edge()
+        edge_list = list()
+        
+        for edge_dic in self.specify_edge():
+            edge_list.append(edge_dic['id'])
+
+        for edge_0 in edge_list: 
+            if edge_0[4] in direction:
+                route = edge_0 #map을 빠져나가는 모든 edge에 대하여
+
+                self.rec_search(edge_0, edge_list, route, routes, n)
+        return routes
+
+
     def generate_cfg(self, route_exist, mode='simulate'):
         self._generate_nod_xml()
         self._generate_edg_xml()
