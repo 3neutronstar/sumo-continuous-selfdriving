@@ -19,6 +19,7 @@ done: 차량이 도착하거나 그 밖의 이유로 사라지는 경우
 transition 입장에서 state와 action tensor는 존재하나 reward는 존재하지 않는 경우가 발생
 reward가 없어지는 경우는 done mask를 이용해서 덮어씌워야 하는 기능이 필요할 가능성이 있음.
 '''
+import time
 import copy
 import random
 import torch
@@ -26,7 +27,7 @@ import traci
 import os
 from xml.etree.ElementTree import parse
 ENV_CONFIGS = {
-    'state_space': 9,
+    'state_space': 8,
     'gen_agent_list': ['agent_{}'.format(i) for i in range(70)],
     'route_list':['route_{}'.format(i) for i in range(3)],
     'action_size': 2
@@ -66,7 +67,71 @@ class Env():
 
         return state, self.num_agent
 
-    # gen_agent_list에 존재하는 agent를 50 timestep 단위로 투입후 agent_list에 추가
+    
+    def step(self, action, step):
+        # action mapping
+        if self.num_agent != 0:
+            self.popup_action=action.detach().clone()
+            for idx, agent in enumerate(self.agent_list):
+                currentSpeed = traci.vehicle.getSpeed(agent)
+                acc = (action[idx, 0]-2.0)/2.0
+                print(acc)
+                traci.vehicle.setSpeed(agent, currentSpeed+acc)
+                self.changeLaneAction(agent, int(action[idx, 1]))
+
+        # agent 투입
+        self.add_agent(step)
+
+        # action 적용
+        traci.simulationStep()
+
+        # agent의 생성이나 제거를 판단
+        self.agent_update()
+
+        # next_state 생성
+        next_state = self.collect_state()
+
+        # reward 생성
+        reward = self.collect_reward()
+        # penalty 생성
+        penalty = self.collect_penalty()
+        if penalty==None and reward == None :
+            return_reward=torch.tensor([0.0],dtype=torch.float,device=self.device)
+        else:
+            self.reward += (reward.sum()-penalty.sum())
+            return_reward=reward-penalty
+            
+
+        return next_state, return_reward, self.num_agent
+
+
+    """functions used in env steps"""
+    #agent의 lanechange action을 결정
+    def changeLaneAction(self, agent, laneChangeAction):
+        if laneChangeAction-1 == 1:  # left
+            lane = traci.vehicle.getLaneID(agent)
+            if len(lane) == 0: # no lane
+                return
+            if lane[-1] == str(traci.edge.getLaneNumber(lane[:-2])-1):
+                return
+            else:
+                traci.vehicle.changeLaneRelative(agent, 1, 0)
+        elif (laneChangeAction-1) == -1:  # right
+            lane = traci.vehicle.getLaneID(agent)
+            if len(lane) == 0:# no lane
+                return
+            if lane[-1] == str(0):
+                return
+            else:
+                traci.vehicle.changeLaneRelative(agent, -1, 0)
+        elif laneChangeAction-1 == 0:  # straight
+            # traci.vehicle.changeLaneRelative(agent, 0, 0)
+            return
+        else:
+            raise NotImplementedError
+
+
+    #gen_agent_list에 존재하는 agent를 50 timestep 단위로 투입후 agent_list에 추가
     def add_agent(self, step):
         if step >= float(50*self.vehicle_gen_idx) and self.vehicle_gen_idx < len(self.gen_agent_list):
             random.shuffle(self.route_list)
@@ -90,12 +155,11 @@ class Env():
                 self.popup_action=torch.cat([self.popup_action,add_tensor],dim=0)
             self.vehicle_gen_idx+=1
 
-    # agent의 제거를 판단
+    #map 내에 존재하는 agent를 제거를 판단
     def agent_update(self):
         # 도착한 agent 제거
         arrived_list = traci.simulation.getArrivedIDList()
         agent_list=copy.deepcopy(self.agent_list)
-        # tmp_num_agent=copy.deepcopy(self.num_agent)
 
         mask_idx=torch.ones(self.num_agent,dtype=torch.bool).view(-1)
         for idx, agent in enumerate(agent_list):
@@ -112,16 +176,18 @@ class Env():
 
     def collect_state(self):
         next_state = torch.zeros(
-            (self.num_agent, self.state_space), dtype=torch.float, device=self.device)
-        agent_state = torch.zeros(
-            (1, self.state_space), dtype=torch.float, device=self.device)  # agent_state는 agent별 state를 나타냄
+            (self.num_agent, (self.state_space+5)), dtype=torch.float, device=self.device)
 
         for i, agent in enumerate(self.agent_list):
+            agent_state = torch.zeros(
+                (1, self.state_space), dtype=torch.float, device=self.device) # agent_state는 agent별 state를 나타냄
             for idx, observ in enumerate(self.observ_list):
                 agent_state[0, idx] = observ(agent)
+            agent_state = torch.cat([agent_state, self.getTrafficLight(agent)], 1)
             next_state[i, :] = agent_state.clone().detach()
 
         return next_state
+
 
     def collect_reward(self):
         if len(self.agent_list)==0:
@@ -164,68 +230,8 @@ class Env():
                     penalty[idx]+=traci.lane.getMaxSpeed(lane)/2.0
         return penalty.detach().clone()
 
-    def step(self, action, step):
-        # action mapping
-        if self.num_agent != 0:
-            self.popup_action=action.detach().clone()
-            for idx, agent in enumerate(self.agent_list):
-                currentSpeed = traci.vehicle.getSpeed(agent)
-                acc = (action[idx, 0]-2.0)/2.0
-                print(acc)
-                traci.vehicle.setSpeed(agent, currentSpeed+acc)
-                self.changeLaneAction(agent, int(action[idx, 1]))
 
-        # agent 투입
-        self.add_agent(step)
-
-        # action 적용
-        traci.simulationStep()
-
-        # agent의 생성이나 제거를 판단
-        self.agent_update()
-
-        # next_state 생성
-        next_state = self.collect_state()
-
-        # reward 생성
-        reward = self.collect_reward()
-        # penalty 생성
-        penalty = self.collect_penalty()
-        if penalty==None and reward == None :
-            return_reward=torch.tensor([0.0],dtype=torch.float,device=self.device)
-        else:
-            self.reward += (reward.sum()-penalty.sum())
-            return_reward=reward-penalty
-            
-
-        return next_state, return_reward, self.num_agent
-
-    # check if agent can change to right lane
-    def changeLaneRight(self, agent):
-        changeLaneInfo = traci.vehicle.couldChangeLane(agent, -1)
-        return changeLaneInfo
-
-    # check if agent can change to left lane
-    def changeLaneLeft(self, agent):
-        changeLaneInfo = traci.vehicle.couldChangeLane(agent, 1)
-        return changeLaneInfo
-
-    # Return distance from leading car, -1 if none
-    def getLeader(self, agent):
-        try:
-            leadDistance = min(traci.vehicle.getLeader(agent, 0.0)[1],100)
-        except TypeError:
-            leadDistance = 100.0
-        return leadDistance/100.0
-
-    # Return distance from following car, -1 if none
-    def getFollower(self, agent):
-        try:
-            followDistance = min(traci.vehicle.getFollower(agent, 0.0)[1],100)
-        except TypeError:
-            followDistance = 100.0
-        return followDistance/100.0
-
+    """observation 관련 함수"""
     def get_observ_list(self):
         #observ = list()
         observ_list = [
@@ -237,49 +243,54 @@ class Env():
             self.getLaneIndex, # index of current lane
             self.getRouteIndex, #index of current edge
             self.getDirection,  #direction of agent
-            self.getTrafficLight #traffic light status of current edge
+            #self.getTrafficLight #traffic light status of current edge '''removed due to change of format of return'''
         ]
         return observ_list
-    
+
+    #return velocity of vehicle
+    def getSpeed(self,agent):
+        velocity=traci.vehicle.getSpeed(agent)
+        return max(velocity,0.0)
+
+    #check if agent can change to right lane
+    def changeLaneRight(self, agent):
+        changeLaneInfo = traci.vehicle.couldChangeLane(agent, -1)
+        return changeLaneInfo
+
+    #check if agent can change to left lane
+    def changeLaneLeft(self, agent):
+        changeLaneInfo = traci.vehicle.couldChangeLane(agent, 1)
+        return changeLaneInfo
+
+    #return distance from leading car, -1 if none
+    def getLeader(self, agent):
+        try:
+            leadDistance = min(traci.vehicle.getLeader(agent, 0.0)[1],100)
+        except TypeError:
+            leadDistance = 100.0
+        return leadDistance/100.0
+
+    #return distance from following car, -1 if none
+    def getFollower(self, agent):
+        try:
+            followDistance = min(traci.vehicle.getFollower(agent, 0.0)[1],100)
+        except TypeError:
+            followDistance = 100.0
+        return followDistance/100.0
+
+    #return index of current lane
     def getLaneIndex(self,agent):
         lane_idx=traci.vehicle.getLaneIndex(agent)
         lane_idx=max(lane_idx,0)
         lane_idx=min(lane_idx,self.num_lane)
         return lane_idx
 
+    #return index of current route
     def getRouteIndex(self,agent):
         route_idx=traci.vehicle.getRouteIndex(agent)
         route_idx=max(route_idx,-1)
         route_idx=min(route_idx,self.num_edge)
         return route_idx
-    
-    def getSpeed(self,agent):
-        velocity=traci.vehicle.getSpeed(agent)
-        return max(velocity,0.0)
-
-    def changeLaneAction(self, agent, laneChangeAction):
-        if laneChangeAction-1 == 1:  # left
-            lane = traci.vehicle.getLaneID(agent)
-            if len(lane) == 0: # no lane
-                return
-            if lane[-1] == str(traci.edge.getLaneNumber(lane[:-2])-1):
-                return
-            else:
-                traci.vehicle.changeLaneRelative(agent, 1, 0)
-        elif (laneChangeAction-1) == -1:  # right
-            lane = traci.vehicle.getLaneID(agent)
-            if len(lane) == 0:# no lane
-                return
-            if lane[-1] == str(0):
-                return
-            else:
-                traci.vehicle.changeLaneRelative(agent, -1, 0)
-        elif laneChangeAction-1 == 0:  # straight
-            # traci.vehicle.changeLaneRelative(agent, 0, 0)
-            return
-        else:
-            raise NotImplementedError
-
 
     # direction은 [current edge]-[surrounding edge]-[probability]의 순으로 구성된 중첩 dictionary
     # junction_edges는 map의 모든 junction에 대해 [junction(node)_id]-[surrounding edge]의 순으로 구성된 dictionary
@@ -290,13 +301,6 @@ class Env():
         direction_key_sorted = list()
         next_edge_val = 0.5
 
-        # getRoadID의 반환값인 cur_edge가 왜 튜플인지?
-        #cur_edge = traci.vehicle.getRoadID(agent)
-        #print(agent, self.route_dict[self.agent_route_dict[agent]])
-        #print(agent, traci.vehicle.getRouteIndex(agent))
-        #index = max(traci.vehicle.getRouteIndex(agent), 0)
-        #print(agent, index)
-        #cur_edge = self.route_dict[self.agent_route_dict[agent]][index]
         cur_edge = self.get_cur_edge(agent)
 
         for cur_node in junction_edges.keys():  # 모든 junction node에 대해, index는 junction_edges의 key가 되는 node의 id
@@ -331,13 +335,10 @@ class Env():
                     else:
                         next_edge_val = 0.5
                         
-            #print('age-route:', agent, self.agent_route_dict[agent])
-            #print('curr_edge:', agent, cur_edge)
-            #print('next_valu:', agent, next_edge_val)
         return next_edge_val
 
+    """getDirection을 위한 함수들"""
     # map 내에 존재하는 모든 junction들에 대해 node_id를 key로, node를 둘러싼 edge_id의 list를 값으로 갖는 딕셔너리를 반환
-
     def get_junction_from_net_xml(self):
         add_file_path = os.path.join(
             self.file_path, 'Net_data', self.file_name + '.net.xml')
@@ -400,7 +401,8 @@ class Env():
         if next_node in traci.trafficlight.getIDList():
             tl_state = self.mapping_tl(cur_edge, next_node)
         else:
-            tl_state = -1 #not exist
+            #tl_state = -1 #not exist
+            tl_state = torch.tensor([0.,0.,0.,0.,0.])
         # print(next_node,tl_state)
         return tl_state
 
@@ -412,20 +414,18 @@ class Env():
         tl_dict['R_to_C'] = all_tl[5:10].lower()
         tl_dict['D_to_C'] = all_tl[10:15].lower()
         tl_dict['L_to_C'] = all_tl[15:20].lower() #실제 사용될 tl
-
-
-
+        
         if tl_dict[cur_edge] == 'rrrrr': #정지
-            tl_state = 0
+            tl_state = torch.tensor([[0.,0.,0.,0.,0.]])
         elif tl_dict[cur_edge] == 'yyyyy': #대기
-            tl_state = 1
+            tl_state = torch.tensor([[0.,0.,0.,0.,0.]])
         elif tl_dict[cur_edge] == 'grrrg': #좌/우회전
-            tl_state = 2
+            tl_state = torch.tensor([[1.,0.,0.,0.,1.]])
         elif tl_dict[cur_edge] == 'ggggr': #직진
-            tl_state = 3        
+            tl_state = torch.tensor([[1.,1.,1.,1.,0.]])
         
         return tl_state 
-    
+        
     def get_edge_from_edg_xml(self):
         add_file_path = os.path.join(
             self.file_path, 'Net_data', self.file_name + '.edg.xml')
