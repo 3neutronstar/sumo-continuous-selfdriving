@@ -177,13 +177,18 @@ class Env():
     def collect_state(self):
         next_state = torch.zeros(
             (self.num_agent, (self.state_space+5)), dtype=torch.float, device=self.device)
+        agent_state = torch.zeros(
+            (1, self.state_space), dtype=torch.float, device=self.device) # agent_state는 agent별 state를 나타냄
 
         for i, agent in enumerate(self.agent_list):
             agent_state = torch.zeros(
                 (1, self.state_space), dtype=torch.float, device=self.device) # agent_state는 agent별 state를 나타냄
             for idx, observ in enumerate(self.observ_list):
                 agent_state[0, idx] = observ(agent)
-            agent_state = torch.cat([agent_state, self.getTrafficLight(agent)], 1)
+
+            tl = torch.reshape(self.getTrafficLight(agent), (1, 5))
+            agent_state = torch.cat([agent_state, tl], 1)
+            
             next_state[i, :] = agent_state.clone().detach()
 
         return next_state
