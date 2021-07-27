@@ -159,15 +159,15 @@ class Env(MultiAgentEnv):
         
         # velocity
         if action%5 == 0: #0, 5, 10
-            traci.vehicle.setSpeed(agent, currentSpeed-2)
-        elif action%5 == 1:
             traci.vehicle.setSpeed(agent, currentSpeed-1)
+        elif action%5 == 1:
+            traci.vehicle.setSpeed(agent, currentSpeed-0.5)
         elif action%5 == 2:
             traci.vehicle.setSpeed(agent, currentSpeed)
         elif action%5 == 3:
-            traci.vehicle.setSpeed(agent, currentSpeed+1)
+            traci.vehicle.setSpeed(agent, currentSpeed+0.5)
         elif action%5 == 4:
-            traci.vehicle.setSpeed(agent, currentSpeed+2)
+            traci.vehicle.setSpeed(agent, currentSpeed+1)
         else:
             raise NotImplementedError
     
