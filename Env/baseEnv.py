@@ -119,7 +119,7 @@ class Env():
         for i, agent in enumerate(self.agent_list):
             for idx, observ in enumerate(self.observ_list):
                 agent_state[0, idx] = observ(agent)
-                next_state[i, :] = agent_state.clone().detach()
+            next_state[i, :] = agent_state.clone().detach()
 
         return next_state
 
