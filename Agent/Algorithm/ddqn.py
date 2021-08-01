@@ -42,7 +42,8 @@ class DDQN():
         self.targetQ = QNetwork(input_size, output_size, configs)
         self.targetQ.to(self.device)
         self.mode=mode
-        hard_update(self.targetQ, self.behaviorQ)
+        if self.mode=='train':
+            hard_update(self.targetQ, self.behaviorQ)
         
         self.transition = namedtuple('Transition',
                                         ('state', 'action', 'reward', 'next_state'))
@@ -65,10 +66,8 @@ class DDQN():
                 with torch.no_grad():
                     q = self.behaviorQ(state)
                     action = torch.max(q, dim=1)[1]
-                print('manual',action)
             else:
                 action = torch.tensor([random.randint(0, self.configs['action_space']-1)], device=self.device)
-                print('random',action)
         else: # 학습이 아닐때
             with torch.no_grad():
                 q = self.behaviorQ(state)
@@ -120,8 +119,8 @@ class DDQN():
 
         self.running_loss += loss.item()
 
-        # 모델 최적화
         self.optimizer.zero_grad()
+        # 모델 최적화
         loss.backward()
         for param in self.behaviorQ.parameters():
             param.grad.data.clamp_(-1, 1)
@@ -144,4 +143,3 @@ class DDQN():
     def eval(self):
         self.behaviorQ.eval()
         self.targetQ.eval()
-        self.behaviorQ=self.targetQ

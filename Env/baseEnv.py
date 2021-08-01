@@ -171,7 +171,6 @@ class Env():
             for idx, agent in enumerate(self.agent_list):
                 currentSpeed = traci.vehicle.getSpeed(agent)
                 acc = (action[idx, 0]-2.0)/2.0
-                print(acc)
                 traci.vehicle.setSpeed(agent, currentSpeed+acc)
                 self.changeLaneAction(agent, int(action[idx, 1]))
 
