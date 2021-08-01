@@ -235,24 +235,6 @@ class Env():
                     penalty[idx]+=traci.lane.getMaxSpeed(lane)/2.0
         return penalty.detach().clone()
 
-<<<<<<< HEAD
-    def step(self, action, step):
-        # action mapping
-        if self.num_agent != 0:
-            self.popup_action=action.detach().clone()
-            for idx, agent in enumerate(self.agent_list):
-                currentSpeed = traci.vehicle.getSpeed(agent)
-                acc = (action[idx, 0]-2.0)/2.0
-                traci.vehicle.setSpeed(agent, currentSpeed+acc)
-                self.changeLaneAction(agent, int(action[idx, 1]))
-
-        # agent 투입
-        self.add_agent(step)
-
-        # action 적용
-        traci.simulationStep()
-=======
->>>>>>> da31b2378dde81751f2b02919ba1e60ea0fff12d
 
     """observation 관련 함수"""
     def get_observ_list(self):
