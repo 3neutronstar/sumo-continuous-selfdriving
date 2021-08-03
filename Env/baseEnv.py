@@ -19,7 +19,7 @@ done: 차량이 도착하거나 그 밖의 이유로 사라지는 경우
 transition 입장에서 state와 action tensor는 존재하나 reward는 존재하지 않는 경우가 발생
 reward가 없어지는 경우는 done mask를 이용해서 덮어씌워야 하는 기능이 필요할 가능성이 있음.
 '''
-import time
+import numpy as np
 import copy
 import random
 import torch
@@ -27,7 +27,7 @@ import traci
 import os
 from xml.etree.ElementTree import parse
 ENV_CONFIGS = {
-    'state_space': 8,
+    'state_space': 13,# 8+5
     'gen_agent_list': ['agent_{}'.format(i) for i in range(70)],
     'route_list':['route_{}'.format(i) for i in range(3)],
     'action_size': 2
@@ -75,7 +75,6 @@ class Env():
             for idx, agent in enumerate(self.agent_list):
                 currentSpeed = traci.vehicle.getSpeed(agent)
                 acc = (action[idx, 0]-2.0)/2.0
-                print(acc)
                 traci.vehicle.setSpeed(agent, currentSpeed+acc)
                 self.changeLaneAction(agent, int(action[idx, 1]))
 
@@ -176,21 +175,15 @@ class Env():
 
     def collect_state(self):
         next_state = torch.zeros(
-            (self.num_agent, (self.state_space+5)), dtype=torch.float, device=self.device)
-        agent_state = torch.zeros(
-            (1, self.state_space), dtype=torch.float, device=self.device) # agent_state는 agent별 state를 나타냄
-
+            (self.num_agent, self.state_space), dtype=torch.float, device=self.device)
         for i, agent in enumerate(self.agent_list):
-            agent_state = torch.zeros(
-                (1, self.state_space), dtype=torch.float, device=self.device) # agent_state는 agent별 state를 나타냄
+            this_agent_list=[]
             for idx, observ in enumerate(self.observ_list):
-                agent_state[0, idx] = observ(agent)
+                this_agent_list.append(torch.tensor(observ(agent)).view(-1))
 
-            tl = torch.reshape(self.getTrafficLight(agent), (1, 5))
-            agent_state = torch.cat([agent_state, tl], 1)
+            agent_state = torch.cat(this_agent_list,dim=0).view(-1)
             
-            next_state[i, :] = agent_state.clone().detach()
-
+            next_state[i, :] = agent_state.detach().clone()
         return next_state
 
 
@@ -248,7 +241,7 @@ class Env():
             self.getLaneIndex, # index of current lane
             self.getRouteIndex, #index of current edge
             self.getDirection,  #direction of agent
-            #self.getTrafficLight #traffic light status of current edge '''removed due to change of format of return'''
+            self.getTrafficLight #traffic light status of current edge '''removed due to change of format of return'''
         ]
         return observ_list
 
@@ -407,7 +400,7 @@ class Env():
             tl_state = self.mapping_tl(cur_edge, next_node)
         else:
             #tl_state = -1 #not exist
-            tl_state = torch.tensor([0.,0.,0.,0.,0.])
+            tl_state = np.array([0.,0.,0.,0.,0.])
         # print(next_node,tl_state)
         return tl_state
 
@@ -421,13 +414,13 @@ class Env():
         tl_dict['L_to_C'] = all_tl[15:20].lower() #실제 사용될 tl
         
         if tl_dict[cur_edge] == 'rrrrr': #정지
-            tl_state = torch.tensor([[0.,0.,0.,0.,0.]])
+            tl_state = np.array([[0.,0.,0.,0.,0.]])
         elif tl_dict[cur_edge] == 'yyyyy': #대기
-            tl_state = torch.tensor([[0.,0.,0.,0.,0.]])
+            tl_state = np.array([[0.,0.,0.,0.,0.]])
         elif tl_dict[cur_edge] == 'grrrg': #좌/우회전
-            tl_state = torch.tensor([[1.,0.,0.,0.,1.]])
+            tl_state = np.array([[1.,0.,0.,0.,1.]])
         elif tl_dict[cur_edge] == 'ggggr': #직진
-            tl_state = torch.tensor([[1.,1.,1.,1.,0.]])
+            tl_state = np.array([[1.,1.,1.,1.,0.]])
         
         return tl_state 
         
