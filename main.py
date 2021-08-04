@@ -119,6 +119,9 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
     # Config 세팅
     epoch = 0
 
+    env = Env(file_path, device, configs)
+    gen_agent_num = len(env.gen_agent_list)
+    speed_state = torch.zeros((gen_agent_num, 3), dtype=torch.float, device=env.device)
     # saveparams여기 쯤 넣어주면 될듯, 하이퍼파라미터 저장
     if configs['mode'] == 'train':
         save_params(file_path, time_data, configs)
@@ -146,6 +149,7 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
             state = next_state
             # print(state)
             total_reward += reward.sum().data
+            eval_set_avg_speed(env, speed_state)
         for _ in range(int(step)):
             agent.update(epoch, num_agent)
         traci.close()
@@ -161,6 +165,7 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         epoch += 1
                 
         print("Epoch: {:4d}, Time:{:.3f}, Reward: {:.3f}".format(epoch, tok-tik, total_reward))
+        print('avg speed: ',eval_get_avg_speed(speed_state))
         print('='*30)
     writer.close()
 
