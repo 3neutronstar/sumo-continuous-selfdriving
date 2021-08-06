@@ -135,7 +135,7 @@ class DDPGAgent(BaseAgent):
         writer.add_scalar('ddpg/policy_loss',self.ddpg_policy_loss/self.max_steps,epoch)
         writer.add_scalar('ddpg/total_loss',(self.ddpg_value_loss+self.ddpg_policy_loss)/self.max_steps,epoch)
         writer.add_scalar('ddpg/noise_scale',self.ddpg_model.noise_scale,epoch)
-        print("DQN LOSS:{:.7f} DDPG VALUE LOSS:{:.7f} POLICY LOSS:{:.7f}".format(self.dqn_loss/self.max_steps,self.ddpg_value_loss/self.max_steps,self.ddpg_policy_loss/self.max_steps))
+        print("DQN LOSS:{:.4e} DDPG VALUE LOSS:{:.4e} POLICY LOSS:{:.4e}".format(self.dqn_loss/self.max_steps,self.ddpg_value_loss/self.max_steps,self.ddpg_policy_loss/self.max_steps))
         self.dqn_loss = 0.0
         self.ddpg_value_loss = 0.0
         self.ddpg_policy_loss = 0.0
@@ -218,8 +218,8 @@ class DDQNAgent(BaseAgent):
                 s, a, r, n_s = s.view(-1, self.state_size), a.view(-1,
                                                                    self.action_size), r, n_s.view(-1, self.state_size)
                 self.ddqn1.save_replay(
-                    s, a, r, n_s)
-                self.ddqn2.save_replay(s, a, r, n_s)
+                    s, a[:,1], r, n_s)
+                self.ddqn2.save_replay(s, a[:,0], r, n_s)
             return
 
     def hyperparams_update(self):
@@ -261,7 +261,7 @@ class DDQNAgent(BaseAgent):
         writer.add_scalar(
             'ddqn2/lr', self.ddqn2.optimizer.param_groups[0]['lr'], epoch)
         writer.add_scalar('ddqn2/loss',self.ddqn2_loss/self.max_steps,epoch)
-        print("DDQN1 LOSS:{:.7f} DDQN2 LOSS:{:.7f}".format(self.ddqn1_loss/self.max_steps,self.ddqn2_loss/self.max_steps))
+        print("DDQN1 LOSS:{:.4e} DDQN2 LOSS:{:.4e}".format(self.ddqn1_loss/self.max_steps,self.ddqn2_loss/self.max_steps))
         self.ddqn1_loss = 0.0
         self.ddqn2_loss = 0.0
         

@@ -150,7 +150,6 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
             # print(state)
             total_reward += reward.sum().data
             eval_set_avg_speed(env, speed_state)
-        for _ in range(int(step)):
             agent.update(epoch, num_agent)
         traci.close()
         print('='*30)

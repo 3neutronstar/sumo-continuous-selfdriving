@@ -97,7 +97,7 @@ class DDQN():
         reward_batch = torch.tensor(batch.reward, device=self.device)
         # Q(s_t, a) 계산 - 모델이 Q(s_t)를 계산하고, 취한 행동의 칼럼을 선택
         state_action_values = self.behaviorQ(
-            state_batch).gather(1, action_batch[:, 1].view(-1, 1).to(torch.int64))  # for 3D
+            state_batch).gather(1, action_batch.view(-1, 1).to(torch.int64))  # for 3D
 
         # 모든 다음 상태를 위한 V(s_{t+1}) 계산
         next_state_values = torch.zeros(

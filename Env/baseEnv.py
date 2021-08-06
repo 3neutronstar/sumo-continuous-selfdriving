@@ -89,7 +89,7 @@ class Env():
 
         # next_state 생성
         next_state = self.collect_state()
-
+        
         # reward 생성
         reward = self.collect_reward()
         # penalty 생성
@@ -214,7 +214,7 @@ class Env():
             for idx,action in enumerate(self.popup_action):
                 lanechange_action=action[1]
                 if lanechange_action!=1:
-                    penalty[idx]+=1.0
+                    penalty[idx]+=1
 
         # teleport penalty
         teleport_list=traci.simulation.getStartingTeleportIDList()
@@ -395,12 +395,11 @@ class Env():
     def getTrafficLight(self, agent):
         cur_edge = self.get_cur_edge(agent)
         next_node = 'n_' + cur_edge.split('_to_')[1]
-
         if next_node in traci.trafficlight.getIDList():
             tl_state = self.mapping_tl(cur_edge, next_node)
         else:
             #tl_state = -1 #not exist
-            tl_state = np.array([0.,0.,0.,0.,0.])
+            tl_state = [1.0,1.0,1.0,1.0,1.0]
         # print(next_node,tl_state)
         return tl_state
 
@@ -414,14 +413,13 @@ class Env():
         tl_dict['L_to_C'] = all_tl[15:20].lower() #실제 사용될 tl
         
         if tl_dict[cur_edge] == 'rrrrr': #정지
-            tl_state = np.array([[0.,0.,0.,0.,0.]])
+            tl_state = [0.,0.,0.,0.,0.]
         elif tl_dict[cur_edge] == 'yyyyy': #대기
-            tl_state = np.array([[0.,0.,0.,0.,0.]])
+            tl_state = [0.5,0.5,0.5,0.5,0.5]
         elif tl_dict[cur_edge] == 'grrrg': #좌/우회전
-            tl_state = np.array([[1.,0.,0.,0.,1.]])
+            tl_state = [1.,0.,0.,0.,1.]
         elif tl_dict[cur_edge] == 'ggggr': #직진
-            tl_state = np.array([[1.,1.,1.,1.,0.]])
-        
+            tl_state = [1.,1.,1.,1.,0.]
         return tl_state 
         
     def get_edge_from_edg_xml(self):
