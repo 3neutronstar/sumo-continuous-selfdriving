@@ -27,7 +27,7 @@ import traci
 import os
 from xml.etree.ElementTree import parse
 ENV_CONFIGS = {
-    'state_space': 13,# 8+5
+    'state_space': 14,# 9+5
     'gen_agent_list': ['agent_{}'.format(i) for i in range(70)],
     'route_list':['route_{}'.format(i) for i in range(3)],
     'action_size': 2
@@ -241,9 +241,23 @@ class Env():
             self.getLaneIndex, # index of current lane
             self.getRouteIndex, #index of current edge
             self.getDirection,  #direction of agent
+            self.getRestDistance, # get the current position of total distance
             self.getTrafficLight #traffic light status of current edge '''removed due to change of format of return'''
         ]
         return observ_list
+    
+    def getRestDistance(self,agent):
+        lane_id=traci.vehicle.getLaneID(agent)
+        if len(str(lane_id))>0:
+            if lane_id[0]==':':# 교차로
+                distance=1.0
+            else:
+                distance=traci.vehicle.getLanePosition(agent)
+                lane_length=traci.lane.getLength(lane_id)
+                distance/=lane_length
+        else: # 위치를 못잡는 경우(start)
+            distance=1.0
+        return distance
 
     #return velocity of vehicle
     def getSpeed(self,agent):
