@@ -69,39 +69,55 @@ class Env():
 
     
     def step(self, action, step):
+        cur_speed=None
         # action mapping
         if self.num_agent != 0:
-            self.popup_action=action.detach().clone()
+            self.popup_action=action.detach().clone().numpy()
+            cur_speed=[]
             for idx, agent in enumerate(self.agent_list):
                 currentSpeed = traci.vehicle.getSpeed(agent)
-                acc = (action[idx, 0]-2.0)/2.0
+                acc = (action[idx, 0]-5.0)/2.0
                 traci.vehicle.setSpeed(agent, currentSpeed+acc)
                 self.changeLaneAction(agent, int(action[idx, 1]))
+                cur_speed.append(currentSpeed)
 
         # agent 투입
         self.add_agent(step)
 
         # action 적용
         traci.simulationStep()
-
         # agent의 생성이나 제거를 판단
-        self.agent_update()
+        removed_agent_idx=self.agent_update()
 
         # next_state 생성
         next_state = self.collect_state()
         
         # reward 생성
         reward = self.collect_reward()
+        # print(np.array(reward).reshape(-1),action)
         # penalty 생성
         penalty = self.collect_penalty()
-        if penalty==None and reward == None :
-            return_reward=torch.tensor([0.0],dtype=torch.float,device=self.device)
+        if (penalty is None) and (reward is None):
+            return_reward=np.array([0.0],dtype=np.float32)
         else:
             self.reward += (reward.sum()-penalty.sum())
             return_reward=reward-penalty
-            
+        
+        #action 보정
+        if self.num_agent != 0 and cur_speed is not None:
+            aft_speed=[]
+            for idx, agent in enumerate(self.agent_list):
+                afterSpeed = traci.vehicle.getSpeed(agent)
+                aft_speed.append(afterSpeed)
+            # print(count,action[count:],cur_speed,aft_speed)
+            count=0
+            for idx,a in enumerate(action):
+                if idx in removed_agent_idx:
+                    count+=1
+                a[0]=min(max(round(((aft_speed[idx-count]-cur_speed[idx])*2)+5.0),0),8)
+            # print(cur_speed,aft_speed,action[:,0].view(-1))
 
-        return next_state, return_reward, self.num_agent
+        return torch.from_numpy(next_state), torch.from_numpy(return_reward), self.num_agent
 
 
     """functions used in env steps"""
@@ -147,11 +163,11 @@ class Env():
             
             self.agent_route_dict[self.gen_agent_list[self.vehicle_gen_idx]] = self.route_list[0]
 
-            add_tensor=torch.zeros((1,2),device=self.device,dtype=torch.int)
+            add_tensor=np.zeros((1,2),dtype=np.int)
             if self.num_agent==1:
-                self.popup_action=add_tensor.clone()
+                self.popup_action=copy.deepcopy(add_tensor)
             else:
-                self.popup_action=torch.cat([self.popup_action,add_tensor],dim=0)
+                self.popup_action=np.concatenate([self.popup_action,add_tensor],axis=0)
             self.vehicle_gen_idx+=1
 
     #map 내에 존재하는 agent를 제거를 판단
@@ -159,55 +175,56 @@ class Env():
         # 도착한 agent 제거
         arrived_list = traci.simulation.getArrivedIDList()
         agent_list=copy.deepcopy(self.agent_list)
+        remove_idx=[]
 
-        mask_idx=torch.ones(self.num_agent,dtype=torch.bool).view(-1)
+        mask_idx=np.ones(self.num_agent,dtype=np.bool).reshape(-1)
         for idx, agent in enumerate(agent_list):
             if agent in arrived_list:
                 self.agent_list.remove(agent) # agent_list에서 도착 agent 제거
                 mask_idx[idx]=False
+                remove_idx.append(idx)
         
         self.num_agent=len(self.agent_list)
         if self.popup_action is None: # before action setting
-            return
+            return None
         else:
-            self.popup_action=self.popup_action[mask_idx].detach().clone()
+            self.popup_action=self.popup_action[mask_idx]
+            return remove_idx
 
 
     def collect_state(self):
-        next_state = torch.zeros(
-            (self.num_agent, self.state_space), dtype=torch.float, device=self.device)
+        next_state = np.zeros(
+            (self.num_agent, self.state_space), dtype=np.float32)
         for i, agent in enumerate(self.agent_list):
             this_agent_list=[]
             for idx, observ in enumerate(self.observ_list):
-                this_agent_list.append(torch.tensor(observ(agent)).view(-1))
+                this_agent_list.append(np.array(observ(agent)).reshape(-1))
 
-            agent_state = torch.cat(this_agent_list,dim=0).view(-1)
+            agent_state = np.concatenate(this_agent_list,axis=0).reshape(-1)
             
-            next_state[i, :] = agent_state.detach().clone()
+            next_state[i, :] = agent_state
         return next_state
 
 
     def collect_reward(self):
         if len(self.agent_list)==0:
             return None
-        reward = torch.zeros(
-            (self.num_agent, 1), dtype=torch.float, device=self.device)
-        agent_reward = torch.zeros(
-            (self.num_agent, 1), dtype=torch.float, device=self.device)
-        # cum_reward = torch.like(reward) cumulative reward 필요한가?
+        reward = np.zeros(
+            (self.num_agent, 1), dtype=np.float32)
 
         for idx, agent in enumerate(self.agent_list):
-            velocity = traci.vehicle.getSpeed(agent)
-            agent_reward[idx] = max(velocity,0.0)
-        reward = agent_reward.detach().clone()
+            # velocity = traci.vehicle.getSpeed(agent)#accel로 change
+            # reward[idx] = velocity# max(velocity,0.0) # agent별로 reward
+            acc = traci.vehicle.getAcceleration(agent)#accel로 change
+            reward[idx] = min(max(acc,-5),5)
         return reward
-    
+        
     def collect_penalty(self):
         if len(self.agent_list)==0:
             return None
         # lanechange penalty
-        penalty = torch.zeros(
-            (self.num_agent, 1), dtype=torch.float, device=self.device)
+        penalty = np.zeros(
+            (self.num_agent, 1), dtype=np.float32)
         if self.popup_action is None:
             pass
         else:
@@ -226,7 +243,7 @@ class Env():
                     penalty[idx]+=5.0
                 else:
                     penalty[idx]+=traci.lane.getMaxSpeed(lane)/2.0
-        return penalty.detach().clone()
+        return penalty
 
 
     """observation 관련 함수"""
@@ -429,7 +446,7 @@ class Env():
         if tl_dict[cur_edge] == 'rrrrr': #정지
             tl_state = [0.,0.,0.,0.,0.]
         elif tl_dict[cur_edge] == 'yyyyy': #대기
-            tl_state = [0.5,0.5,0.5,0.5,0.5]
+            tl_state = [0.2,0.2,0.2,0.2,0.2]
         elif tl_dict[cur_edge] == 'grrrg': #좌/우회전
             tl_state = [1.,0.,0.,0.,1.]
         elif tl_dict[cur_edge] == 'ggggr': #직진

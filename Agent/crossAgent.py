@@ -170,7 +170,7 @@ DDQN_AGENT_CONFIGS = {
         'lr_decaying_epoch': 50,
         'lr_decaying_rate': 0.5,
         'gamma': 0.999,
-        'action_space': 5,
+        'action_space': 9,
         'update_type': 'hard',
         'tau':0.05,
         'target_update_period': 20,
