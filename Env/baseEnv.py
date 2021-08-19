@@ -92,17 +92,9 @@ class Env():
         # next_state 생성
         next_state = self.collect_state()
         
-        # reward 생성
-        reward = self.collect_reward()
-        # print(np.array(reward).reshape(-1),action)
-        # penalty 생성
-        penalty = self.collect_penalty()
-        if (penalty is None) and (reward is None):
-            return_reward=np.array([0.0],dtype=np.float32)
-        else:
-            self.reward += (reward.sum()-penalty.sum())
-            return_reward=reward-penalty
-        
+        #reward 생성
+        reward = self.calculate_reward()
+        print('reward:', reward)
         #action 보정
         if self.num_agent != 0 and cur_speed is not None:
             aft_speed=[]
@@ -117,7 +109,7 @@ class Env():
                 a[0]=min(max(round(((aft_speed[idx-count]-cur_speed[idx])*2)+5.0),0),8)
             # print(cur_speed,aft_speed,action[:,0].view(-1))
 
-        return torch.from_numpy(next_state), torch.from_numpy(return_reward), self.num_agent
+        return torch.from_numpy(next_state), torch.from_numpy(reward), self.num_agent
 
 
     """functions used in env steps"""
@@ -206,24 +198,31 @@ class Env():
         return next_state
 
 
-    def collect_reward(self):
+    def collect_pos_reward(self):
         if len(self.agent_list)==0:
             return None
-        reward = np.zeros(
+        
+        pos_reward = np.zeros(
             (self.num_agent, 1), dtype=np.float32)
 
         for idx, agent in enumerate(self.agent_list):
-            # velocity = traci.vehicle.getSpeed(agent)#accel로 change
-            # reward[idx] = velocity# max(velocity,0.0) # agent별로 reward
-            acc = traci.vehicle.getAcceleration(agent)#accel로 change
-            reward[idx] = min(max(acc,-5),5)
-        return reward
+            #acc = traci.vehicle.getAcceleration(agent) #velocity -> accel 로 대체
+            speed = traci.vehicle.getSpeed(agent)
+            pos_reward[idx] = max(speed, 0.0)
+            #pos_reward[idx] = min(max(acc,-5),5)
+            #print("agent:", agent)
+            #print("acc:", acc)
+            #print("speed:", speed)
         
-    def collect_penalty(self):
+        return pos_reward
+        
+
+    def collect_neg_reward(self):
         if len(self.agent_list)==0:
             return None
-        # lanechange penalty
-        penalty = np.zeros(
+        
+        #related to lanechange penalty
+        neg_reward = np.zeros(
             (self.num_agent, 1), dtype=np.float32)
         if self.popup_action is None:
             pass
@@ -231,19 +230,43 @@ class Env():
             for idx,action in enumerate(self.popup_action):
                 lanechange_action=action[1]
                 if lanechange_action!=1:
-                    penalty[idx]+=1
+                    neg_reward[idx]+=1
 
-        # teleport penalty
+        #related to teleport penalty
         teleport_list=traci.simulation.getStartingTeleportIDList()
         for tp_veh in teleport_list:
             if tp_veh in self.agent_list:
                 idx=self.agent_list.index(tp_veh)
                 lane=traci.vehicle.getLaneID(tp_veh)
                 if len(lane)==0: # error
-                    penalty[idx]+=5.0
+                    neg_reward[idx]+=5.0
                 else:
-                    penalty[idx]+=traci.lane.getMaxSpeed(lane)/2.0
-        return penalty
+                    neg_reward[idx]+=traci.lane.getMaxSpeed(lane)/2.0
+        
+        #related to emergency brake
+        emergency_stop_list = traci.simulation.getEmergencyStoppingVehiclesIDList()
+        for vehicle in emergency_stop_list:
+            if vehicle in self.agent_list:
+                idx = self.agent_list.index(vehicle)
+                neg_reward[idx]+=10000
+        
+        return neg_reward
+
+    #calculate overall reward
+    def calculate_reward(self):
+        pos_reward = self.collect_pos_reward()
+        neg_reward = self.collect_neg_reward()
+
+        print("pos:", pos_reward)
+        print('neg:', neg_reward)
+
+        if (pos_reward is None) and (neg_reward is None):
+            reward = np.array([0.0],dtype=np.float32)
+        else:
+            self.reward += (pos_reward.sum()-neg_reward.sum())
+            reward = pos_reward - neg_reward
+
+        return reward
 
 
     """observation 관련 함수"""
@@ -270,6 +293,8 @@ class Env():
                 distance=1.0
             else:
                 distance=traci.vehicle.getLanePosition(agent)
+                #if agent == 'agent_0':
+                #    print("distance:", distance)
                 lane_length=traci.lane.getLength(lane_id)
                 distance/=lane_length
         else: # 위치를 못잡는 경우(start)
