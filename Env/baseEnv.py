@@ -206,16 +206,20 @@ class Env():
             (self.num_agent, 1), dtype=np.float32)
 
         for idx, agent in enumerate(self.agent_list):
-            #acc = traci.vehicle.getAcceleration(agent) #velocity -> accel 로 대체
-            speed = traci.vehicle.getSpeed(agent)
-            pos_reward[idx] = max(speed, 0.0)
-            #pos_reward[idx] = min(max(acc,-5),5)
-            #print("agent:", agent)
-            #print("acc:", acc)
-            #print("speed:", speed)
-        
+            # speed = traci.vehicle.getSpeed(agent)
+            # pos_reward[idx] = max(speed, 0.0)
+            target_velocity=self.get_desired_velocity(agent)
+            pos_reward[idx]=self._calc_desired_velocity_reward(agent,target_velocity)
         return pos_reward
+    
+    # def get_desired_velocity(self,agent):
+    #     desired_velocity=
+    #     return desired_velocity
         
+    def _calc_desired_velocity_reward(self,agent,target_velocity):
+        speed = traci.vehicle.getSpeed(agent)
+        reward=(target_velocity-abs(target_velocity-speed))/(target_velocity+1e-12)
+        return reward
 
     def collect_neg_reward(self):
         if len(self.agent_list)==0:
@@ -256,9 +260,6 @@ class Env():
     def calculate_reward(self):
         pos_reward = self.collect_pos_reward()
         neg_reward = self.collect_neg_reward()
-
-        print("pos:", pos_reward)
-        print('neg:', neg_reward)
 
         if (pos_reward is None) and (neg_reward is None):
             reward = np.array([0.0],dtype=np.float32)

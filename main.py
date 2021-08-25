@@ -22,7 +22,7 @@ def parse_args(args):
 
     # 기본 옵션
     parser.add_argument('mode', type=str, choices=[
-                        'train', 'simulate', 'test', 'load_train','gym','train_rllib','test_rllib','gym_rllib'])
+                        'train', 'simulate', 'test', 'load_train','gym'])
     if 'gym' in parser.parse_known_args(args)[0].mode.lower():
         parser.add_argument('--algorithm',type=str,default='ddpg',choices=['ddpg','dqn','ppo'])
 
@@ -278,12 +278,6 @@ def main(args):
         learner=GymLearner(flags,device,configs)
         learner.run()
         return
-    elif 'rllib' in flags.mode.lower():
-        from rllib import RLLibImplementor
-        sumoConfig = os.path.join(
-            file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
-        implementor=RLLibImplementor(flags,device,configs,sumoBinary,sumoConfig)
-        implementor.run()
     else:  # simulate
         sumoConfig = os.path.join(
             file_path, 'Net_data', '{}.sumocfg'.format(configs['network']))  # 중간 파일 경로 추가
