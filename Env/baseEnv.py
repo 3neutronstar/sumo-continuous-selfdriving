@@ -94,7 +94,7 @@ class Env():
         
         #reward 생성
         reward = self.calculate_reward()
-        print('reward:', reward)
+        # print('reward:', reward)
         #action 보정
         if self.num_agent != 0 and cur_speed is not None:
             aft_speed=[]
@@ -212,13 +212,43 @@ class Env():
             pos_reward[idx]=self._calc_desired_velocity_reward(agent,target_velocity)
         return pos_reward
     
-    # def get_desired_velocity(self,agent):
-    #     desired_velocity=
-    #     return desired_velocity
+    def get_desired_velocity(self,agent):
+        # 신호를 받고
+        cur_edge = self.get_cur_edge(agent)
+        next_node = 'n_' + cur_edge.split('_to_')[1]
+
+        tl_dict=dict()
+        if next_node in traci.trafficlight.getIDList():
+            all_tl = traci.trafficlight.getRedYellowGreenState(next_node)
+            tl_dict['U_to_C'] = all_tl[0:5].lower()
+            tl_dict['R_to_C'] = all_tl[5:10].lower()
+            tl_dict['D_to_C'] = all_tl[10:15].lower()
+            tl_dict['L_to_C'] = all_tl[15:20].lower() #실제 사용될 tl
+
+        # 구간 최대 속도
+        max_speed=traci.lane.getMaxSpeed(cur_edge+'_0')
+        # 남은 거리 계산
+        distance=self.getRestDistance(agent)
+        leader_distance=self.getLeader(agent)
+
+        if leader_distance < 0.2: # 장애물이 가까우면 desired velocity가 낮게
+            desired_velocity=max_speed*leader_distance
+            return desired_velocity
+
+        if cur_edge not in tl_dict.keys():
+            desired_velocity=max_speed
+            return desired_velocity
+        elif tl_dict[cur_edge] == 'rrrrr': #정지
+            # 남은 거리기반 linear 감소
+            if distance<0.2:
+                desired_velocity=distance/0.2*max_speed
+                return desired_velocity
+        desired_velocity=max_speed
+        return desired_velocity
         
     def _calc_desired_velocity_reward(self,agent,target_velocity):
         speed = traci.vehicle.getSpeed(agent)
-        reward=(target_velocity-abs(target_velocity-speed))/(target_velocity+1e-12)
+        reward=max(target_velocity-abs(target_velocity-speed),0)/(target_velocity+1e-12)
         return reward
 
     def collect_neg_reward(self):
@@ -247,12 +277,12 @@ class Env():
                 else:
                     neg_reward[idx]+=traci.lane.getMaxSpeed(lane)/2.0
         
-        #related to emergency brake
-        emergency_stop_list = traci.simulation.getEmergencyStoppingVehiclesIDList()
-        for vehicle in emergency_stop_list:
-            if vehicle in self.agent_list:
-                idx = self.agent_list.index(vehicle)
-                neg_reward[idx]+=10000
+        # #related to emergency brake
+        # emergency_stop_list = traci.simulation.getEmergencyStoppingVehiclesIDList()
+        # for vehicle in emergency_stop_list:
+        #     if vehicle in self.agent_list:
+        #         idx = self.agent_list.index(vehicle)
+        #         neg_reward[idx]+=10000
         
         return neg_reward
 
@@ -260,7 +290,7 @@ class Env():
     def calculate_reward(self):
         pos_reward = self.collect_pos_reward()
         neg_reward = self.collect_neg_reward()
-
+        # print(list(pos_reward),list(neg_reward))
         if (pos_reward is None) and (neg_reward is None):
             reward = np.array([0.0],dtype=np.float32)
         else:
@@ -298,6 +328,7 @@ class Env():
                 #    print("distance:", distance)
                 lane_length=traci.lane.getLength(lane_id)
                 distance/=lane_length
+                distance=1-distance
         else: # 위치를 못잡는 경우(start)
             distance=1.0
         return distance
