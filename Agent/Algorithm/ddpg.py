@@ -102,15 +102,16 @@ class DDPG():
                                     ('state', 'action', 'reward', 'next_state','done'))
         self.experience_replay = ReplayMemory(
             configs['experience_replay_size'],self.Transition)
+        self.actor_target.eval()
+        self.critic_target.eval()
 
     def get_action(self, state):
-        self.actor.eval()
         if self.mode=='train' and self.configs['init_train_ddpg']>=len(self.experience_replay):
             mu=torch.randn([state.size()[0],1]).to(self.device)
         else:
             with torch.no_grad():
+                self.actor.eval()
                 mu = self.actor(state.float().to(self.device))
-                self.actor.train()
                 mu = mu.data*self.action_top
 
                 if self.action_noise is not None and self.mode !='test':
@@ -121,6 +122,8 @@ class DDPG():
         return mu
 
     def update(self, next_action=None, epoch=None):
+        self.actor.train()
+        self.critic.train()
         if len(self.experience_replay) <= self.configs['init_train_ddpg']:
             return 0.0, 0.0
         transitions = self.experience_replay.sample(self.configs['batch_size'])

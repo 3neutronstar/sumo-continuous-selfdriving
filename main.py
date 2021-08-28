@@ -60,7 +60,7 @@ def test(time_data, device, configs, sumoBinary, sumoConfig):
     traci.start(sumoCmd)
     step = 0
     env = Env(file_path, device, configs)
-    state, num_agent = env.init()
+    state, num_agent,done = env.init()
     total_reward = 0
     ##########
     gen_agent_num = len(env.gen_agent_list)
@@ -78,8 +78,8 @@ def test(time_data, device, configs, sumoBinary, sumoConfig):
     tik = time.time()
     with torch.no_grad():
         while step < configs['EXP_CONFIGS']['max_steps']:
-            action = agent.get_action(state, num_agent)
-            next_state, reward, num_agent = env.step(action, step)
+            action = agent.get_action(state, num_agent,done)
+            next_state, reward, done,num_agent = env.step(action, step)
             step += STEP_LENGTH
             # arrived_vehicles += 해주는 과정 필요
             #agent.save_replay(state, action, reward, next_state, num_agent)
@@ -133,19 +133,19 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         traci.start(sumoCmd)
         step = 0.0
         env = Env(file_path, device, configs)
-        state, num_agent = env.init()
+        state, done, num_agent = env.init()
         total_reward = 0.0
         tik = time.time()
         act_list = list()
 
         while step < configs['EXP_CONFIGS']['max_steps']:
-            action = agent.get_action(state, num_agent)
-            next_state, reward, num_agent = env.step(action, step)
+            action = agent.get_action(state, num_agent,done)
+            next_state, reward,done, num_agent = env.step(action, step)
             step += STEP_LENGTH
             # arrived_vehicles += 해주는 과정 필요
             
             show_actions(writer, action, epoch, step,act_list)
-            agent.save_replay(state, action, reward, next_state, num_agent)
+            agent.save_replay(state, action, reward, next_state,done, num_agent)
             state = next_state
             # print(state)
             total_reward += reward.sum().data

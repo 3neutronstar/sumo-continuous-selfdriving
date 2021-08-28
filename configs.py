@@ -6,7 +6,7 @@ DEFAULT_CONFIGS = {
         'network': None,
         'max_steps': 3600,
         'action_size': 2,
-        'state_space': 14,
+        'state_space': 15,
     },
 
     # # NET_CONFIGS

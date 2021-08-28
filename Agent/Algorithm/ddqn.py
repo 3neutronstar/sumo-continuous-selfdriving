@@ -64,6 +64,7 @@ class DDQN():
         if self.mode=='train':
             if random.random() > self.epsilon :  # epsilon greedy
                 with torch.no_grad():
+                    self.behaviorQ.eval()
                     q = self.behaviorQ(state)
                     action = torch.max(q, dim=1)[1]
             else:
@@ -80,7 +81,9 @@ class DDQN():
 
     def update(self, epoch):
         if len(self.experience_replay) < self.configs['batch_size']:
-            return None, 0
+            return 0
+        self.targetQ.eval()
+        self.behaviorQ.train()
 
         transitions = self.experience_replay.sample(self.configs['batch_size'])
         batch = self.transition(*zip(*transitions))
@@ -125,7 +128,7 @@ class DDQN():
         for param in self.behaviorQ.parameters():
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
-        return loss.detach().clone()
+        return loss.detach().clone().item()
 
     def hyperparams_update(self):
         self.lr_scheduler.step()

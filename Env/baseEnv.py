@@ -27,7 +27,7 @@ import traci
 import os
 from xml.etree.ElementTree import parse
 ENV_CONFIGS = {
-    'state_space': 14,# 9+5
+    'state_space': 15,# 9+5+1, target velocity
     'gen_agent_list': ['agent_{}'.format(i) for i in range(70)],
     'route_list':['route_{}'.format(i) for i in range(3)],
     'action_size': 2
@@ -61,28 +61,32 @@ class Env():
         
 
     def init(self):
-        state = self.collect_state()
+        removed_agent_idx=[]
+        state = self.collect_state(removed_agent_idx)
         for id in traci.route.getIDList():
             self.route_dict[id] = traci.route.getEdges(id)
-
-        return state, self.num_agent
+        done=None
+        return state, done,self.num_agent
 
     
     def step(self, action, step):
         cur_speed=None
         # action mapping
         if self.num_agent != 0:
-            self.popup_action=action.detach().clone().numpy()
+            if action!=[]:
+                self.popup_action=action.detach().clone().numpy()
             cur_speed=[]
             for idx, agent in enumerate(self.agent_list):
                 currentSpeed = traci.vehicle.getSpeed(agent)
-                acc = (action[idx, 0]-5.0)/2.0
+                # acc = (action[idx, 0]-5.0)/2.0
+                acc = action[idx, 0]#ddqn ddpg
                 traci.vehicle.setSpeed(agent, currentSpeed+acc)
                 self.changeLaneAction(agent, int(action[idx, 1]))
                 cur_speed.append(currentSpeed)
 
         # agent 투입
         self.add_agent(step)
+        done=np.zeros((self.num_agent,1),dtype=np.bool) 
 
         # action 적용
         traci.simulationStep()
@@ -90,15 +94,17 @@ class Env():
         removed_agent_idx=self.agent_update()
 
         # next_state 생성
-        next_state = self.collect_state()
+        next_state = self.collect_state(removed_agent_idx)
         
         #reward 생성
-        reward = self.calculate_reward()
+        reward = self.calculate_reward(removed_agent_idx)
         # print('reward:', reward)
         #action 보정
         if self.num_agent != 0 and cur_speed is not None:
             aft_speed=[]
             for idx, agent in enumerate(self.agent_list):
+                if idx in removed_agent_idx:
+                    continue
                 afterSpeed = traci.vehicle.getSpeed(agent)
                 aft_speed.append(afterSpeed)
             # print(count,action[count:],cur_speed,aft_speed)
@@ -106,10 +112,19 @@ class Env():
             for idx,a in enumerate(action):
                 if idx in removed_agent_idx:
                     count+=1
-                a[0]=min(max(round(((aft_speed[idx-count]-cur_speed[idx])*2)+5.0),0),8)
+                if idx-count>=0:
+                    a[0]=min(max(round(((aft_speed[idx-count]-cur_speed[idx])*2)+5.0),0),8)
             # print(cur_speed,aft_speed,action[:,0].view(-1))
-
-        return torch.from_numpy(next_state), torch.from_numpy(reward), self.num_agent
+        
+        #agent elimination check
+        if 'fin' in self.agent_list:
+            for idx in removed_agent_idx:
+                self.agent_list.remove('fin')
+                done[idx]=1
+            self.num_agent=len(self.agent_list)
+        else:
+            done=np.zeros((self.num_agent))
+        return torch.from_numpy(next_state), torch.from_numpy(reward), torch.from_numpy(done),self.num_agent
 
 
     """functions used in env steps"""
@@ -163,7 +178,7 @@ class Env():
             self.vehicle_gen_idx+=1
 
     #map 내에 존재하는 agent를 제거를 판단
-    def agent_update(self):
+    def agent_update(self)->list:
         # 도착한 agent 제거
         arrived_list = traci.simulation.getArrivedIDList()
         agent_list=copy.deepcopy(self.agent_list)
@@ -172,33 +187,34 @@ class Env():
         mask_idx=np.ones(self.num_agent,dtype=np.bool).reshape(-1)
         for idx, agent in enumerate(agent_list):
             if agent in arrived_list:
-                self.agent_list.remove(agent) # agent_list에서 도착 agent 제거
+                self.agent_list[idx]='fin' # agent_list에서 도착 agent 제거
                 mask_idx[idx]=False
                 remove_idx.append(idx)
         
-        self.num_agent=len(self.agent_list)
         if self.popup_action is None: # before action setting
-            return None
+            return []
         else:
             self.popup_action=self.popup_action[mask_idx]
             return remove_idx
 
 
-    def collect_state(self):
+    def collect_state(self,removed_agent_idx):
         next_state = np.zeros(
             (self.num_agent, self.state_space), dtype=np.float32)
-        for i, agent in enumerate(self.agent_list):
+        for idx, agent in enumerate(self.agent_list):
+            if idx in removed_agent_idx:
+                continue
+
             this_agent_list=[]
-            for idx, observ in enumerate(self.observ_list):
+            for i, observ in enumerate(self.observ_list):
                 this_agent_list.append(np.array(observ(agent)).reshape(-1))
 
             agent_state = np.concatenate(this_agent_list,axis=0).reshape(-1)
-            
-            next_state[i, :] = agent_state
+            next_state[idx, :] = agent_state
         return next_state
 
 
-    def collect_pos_reward(self):
+    def collect_pos_reward(self,removed_agent_idx):
         if len(self.agent_list)==0:
             return None
         
@@ -206,6 +222,8 @@ class Env():
             (self.num_agent, 1), dtype=np.float32)
 
         for idx, agent in enumerate(self.agent_list):
+            if idx in removed_agent_idx:
+                continue
             # speed = traci.vehicle.getSpeed(agent)
             # pos_reward[idx] = max(speed, 0.0)
             target_velocity=self.get_desired_velocity(agent)
@@ -231,17 +249,17 @@ class Env():
         distance=self.getRestDistance(agent)
         leader_distance=self.getLeader(agent)
 
-        if leader_distance < 0.2: # 장애물이 가까우면 desired velocity가 낮게
+        if leader_distance < 0.5: # 장애물이 가까우면 desired velocity가 낮게
             desired_velocity=max_speed*leader_distance
             return desired_velocity
 
         if cur_edge not in tl_dict.keys():
             desired_velocity=max_speed
             return desired_velocity
-        elif tl_dict[cur_edge] == 'rrrrr': #정지
+        elif tl_dict[cur_edge] in ['rrrrr','yyyyy']: #정지 'grrrg'
             # 남은 거리기반 linear 감소
-            if distance<0.2:
-                desired_velocity=distance/0.2*max_speed
+            if distance<0.3:
+                desired_velocity=distance/0.3*max_speed
                 return desired_velocity
         desired_velocity=max_speed
         return desired_velocity
@@ -251,7 +269,7 @@ class Env():
         reward=max(target_velocity-abs(target_velocity-speed),0)/(target_velocity+1e-12)
         return reward
 
-    def collect_neg_reward(self):
+    def collect_neg_reward(self,removed_agent_idx):
         if len(self.agent_list)==0:
             return None
         
@@ -262,6 +280,8 @@ class Env():
             pass
         else:
             for idx,action in enumerate(self.popup_action):
+                if idx in removed_agent_idx:
+                    continue
                 lanechange_action=action[1]
                 if lanechange_action!=1:
                     neg_reward[idx]+=1
@@ -287,9 +307,9 @@ class Env():
         return neg_reward
 
     #calculate overall reward
-    def calculate_reward(self):
-        pos_reward = self.collect_pos_reward()
-        neg_reward = self.collect_neg_reward()
+    def calculate_reward(self,removed_agent_idx):
+        pos_reward = self.collect_pos_reward(removed_agent_idx)
+        neg_reward = self.collect_neg_reward(removed_agent_idx)
         # print(list(pos_reward),list(neg_reward))
         if (pos_reward is None) and (neg_reward is None):
             reward = np.array([0.0],dtype=np.float32)
@@ -313,7 +333,8 @@ class Env():
             self.getRouteIndex, #index of current edge
             self.getDirection,  #direction of agent
             self.getRestDistance, # get the current position of total distance
-            self.getTrafficLight #traffic light status of current edge '''removed due to change of format of return'''
+            self.getTrafficLight, #traffic light status of current edge '''removed due to change of format of return'''
+            self.get_desired_velocity,
         ]
         return observ_list
     
