@@ -51,10 +51,12 @@ class DDPGAgent(BaseAgent):
         self.ddpg_value_loss = 0.0
         self.ddpg_policy_loss = 0.0
 
-    def get_action(self, states, num_agent):
+    def get_action(self, states, num_agent,done):
         actions = list()
         if num_agent != 0:
-            for state in states:
+            for i,state in enumerate(states):
+                if done[i]==True:
+                    continue
                 # direction
                 dqn_action = self.dqn_model.get_action(state.view(1, -1))
                 # accel
@@ -75,11 +77,13 @@ class DDPGAgent(BaseAgent):
         self.ddpg_value_loss+=ddpg_value_loss
         self.ddpg_policy_loss+=ddpg_policy_loss
 
-    def save_replay(self, state, action, reward, next_state, num_agent):
+    def save_replay(self, state, action, reward, next_state,done, num_agent):
         if type(action) == list or num_agent == 0:
             return
         else:
-            for s, a, r, n_s in zip(state, action, reward, next_state):
+            for s, a, r, n_s,d in zip(state, action, reward, next_state,done):
+                if d:
+                    continue
                 s, a, r, n_s = s.view(-1, self.state_size), a.view(-1,
                                                                    self.action_size), r, n_s.view(-1, self.state_size)
                 self.dqn_model.save_replay(
@@ -143,7 +147,10 @@ class DDPGAgent(BaseAgent):
         self.dqn_loss = 0.0
         self.ddpg_value_loss = 0.0
         self.ddpg_policy_loss = 0.0
-
+    
+    def eval(self):
+        self.ddpg_model.eval()
+        self.dqn_model.eval()
 
 DDQN_AGENT_CONFIGS = {
     'ddqn1': { # direction
@@ -158,7 +165,7 @@ DDQN_AGENT_CONFIGS = {
         'lr_decaying_rate': 0.5,
         'gamma': 0.999,
         'action_space': 3,
-        'update_type': 'soft',
+        'update_type': 'hard',
         'tau':0.05,
         'target_update_period': 20,
         'gym_mode':False,
@@ -195,10 +202,12 @@ class DDQNAgent(BaseAgent):
         self.ddqn1_loss = 0.0
         self.ddqn2_loss = 0.0
 
-    def get_action(self, states, num_agent):
+    def get_action(self, states, num_agent,done):
         actions = list()
         if num_agent != 0:
-            for state in states:
+            for i,state in enumerate(states):
+                if done[i]==True:
+                    continue
                 # direction
                 ddqn_action1 = self.ddqn1.get_action(state.view(1, -1))
                 # accel
@@ -214,11 +223,14 @@ class DDQNAgent(BaseAgent):
         self.ddqn1_loss+= self.ddqn1.update(epoch)
         self.ddqn2_loss+= self.ddqn2.update(epoch)
 
-    def save_replay(self, state, action, reward, next_state, num_agent):
+    def save_replay(self, state, action, reward, next_state, done,num_agent):
+
         if type(action) == list or num_agent == 0:
             return
         else:
-            for s, a, r, n_s in zip(state, action, reward, next_state):
+            for s, a, r, n_s,d in zip(state, action, reward, next_state,done):
+                if d :
+                    continue
                 s, a, r, n_s = s.view(-1, self.state_size), a.view(-1,
                                                                    self.action_size), r, n_s.view(-1, self.state_size)
                 self.ddqn1.save_replay(
@@ -287,12 +299,12 @@ PPO_DDQN_AGENT_CONFIGS = {
         'epsilon_final': 0.001,
         'experience_replay_size': 1e4,
         'batch_size': 32,
-        'lr': 1e-4,
+        'lr': 1e-2,
         'lr_decaying_epoch': 50,
         'lr_decaying_rate': 0.5,
         'gamma': 0.999,
         'action_space': 3,
-        'update_type': 'soft',
+        'update_type': 'hard',
         'tau':0.05,
         'target_update_period': 20,
         'gym_mode':False,
@@ -311,9 +323,6 @@ PPO_DDQN_AGENT_CONFIGS = {
         'eps_clips':0.2,
         'k_epochs':10,
         'action_space': 1,
-        'update_type': 'hard',
-        'tau':0.05,
-        'target_update_period': 20,
         'gym_mode':False,
     },
 }
@@ -348,6 +357,7 @@ class PPO_DDQN_Agent(BaseAgent):
                 ddqn_action1 = self.ddqn1.get_action(state.view(1, -1))
                 # accel
                 ppo_action = torch.from_numpy(self.ppo.select_action(state.view(1,-1))).to(self.device).view(1,-1)
+                # print(ppo_action)
                 actions.append(torch.cat((ppo_action, ddqn_action1), dim=1))
         if len(actions) != 0:
             actions = torch.cat(actions, dim=0).detach().clone()
@@ -380,7 +390,7 @@ class PPO_DDQN_Agent(BaseAgent):
         self.ppo.buffer.actions=[]
         self.ppo.buffer.logprobs=[]
         self.ppo.buffer.is_terminals=[]
-        
+
     def save_weight(self, epoch,best_reward,total_reward):
         self.ddqn1.optimizer.zero_grad()
         self.ppo.optimizer.zero_grad()
@@ -428,20 +438,20 @@ class PPO_DDQN_Agent(BaseAgent):
 
 
 
-# class CrossAgent(DDQNAgent):
-#     def __init__(self, file_path, time_data, device, configs):
-#         if configs['mode'] != 'load_train':
-#             configs['AGENT_CONFIGS'] = DDQN_AGENT_CONFIGS
-#         super(CrossAgent, self).__init__(file_path, time_data, device, configs)
+class CrossAgent(DDQNAgent):
+    def __init__(self, file_path, time_data, device, configs):
+        if configs['mode'] != 'load_train':
+            configs['AGENT_CONFIGS'] = DDQN_AGENT_CONFIGS
+        super(CrossAgent, self).__init__(file_path, time_data, device, configs)
 # class CrossAgent(DDPGAgent):
 #     def __init__(self, file_path, time_data, device, configs):
 #         if configs['mode'] != 'load_train':
 #             configs['AGENT_CONFIGS'] = AGENT_CONFIGS
 #         super(CrossAgent, self).__init__(file_path, time_data, device, configs)
 
-class CrossAgent(PPO_DDQN_Agent):
-    def __init__(self, file_path, time_data, device, configs):
-        if configs['mode'] != 'load_train':
-            configs['AGENT_CONFIGS'] = PPO_DDQN_AGENT_CONFIGS
-        super(CrossAgent, self).__init__(file_path, time_data, device, configs)
+# class CrossAgent(PPO_DDQN_Agent):
+#     def __init__(self, file_path, time_data, device, configs):
+#         if configs['mode'] != 'load_train':
+#             configs['AGENT_CONFIGS'] = PPO_DDQN_AGENT_CONFIGS
+#         super(CrossAgent, self).__init__(file_path, time_data, device, configs)
 

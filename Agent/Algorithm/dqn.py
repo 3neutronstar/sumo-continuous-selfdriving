@@ -137,3 +137,7 @@ class DQN():
         else:
             if epoch % self.configs['target_update_period'] == 0:
                 hard_update(self.targetQ, self.behaviorQ)
+    
+    def eval(self):
+        self.behaviorQ.eval()
+        self.targetQ.eval()

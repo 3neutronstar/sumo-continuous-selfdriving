@@ -110,8 +110,8 @@ class DDPG():
             mu=torch.randn([state.size()[0],1]).to(self.device)
         else:
             with torch.no_grad():
-                self.actor.eval()
-                mu = self.actor(state.float().to(self.device))
+                self.actor_target.eval()
+                mu = self.actor_target(state.float().to(self.device))
                 mu = mu.data*self.action_top
 
                 if self.action_noise is not None and self.mode !='test':
@@ -197,3 +197,7 @@ class DDPG():
             self.noise_scale=self.configs['final_noise_scale']
         else:
             self.noise_scale*=self.configs['noise_reduce_rate']
+    
+    def eval(self):
+        self.actor_target.eval()
+        self.critic_target.eval()

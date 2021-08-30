@@ -64,14 +64,13 @@ class DDQN():
         if self.mode=='train':
             if random.random() > self.epsilon :  # epsilon greedy
                 with torch.no_grad():
-                    self.behaviorQ.eval()
-                    q = self.behaviorQ(state)
+                    q = self.targetQ(state)
                     action = torch.max(q, dim=1)[1]
             else:
                 action = torch.tensor([random.randint(0, self.configs['action_space']-1)], device=self.device)
         else: # 학습이 아닐때
             with torch.no_grad():
-                q = self.behaviorQ(state)
+                q = self.targetQ(state)
                 action = torch.max(q, dim=1)[1]
         return action.view(1, 1)
 

@@ -79,6 +79,7 @@ def test(time_data, device, configs, sumoBinary, sumoConfig):
     with torch.no_grad():
         while step < configs['EXP_CONFIGS']['max_steps']:
             action = agent.get_action(state, num_agent,done)
+
             next_state, reward, done,num_agent = env.step(action, step)
             step += STEP_LENGTH
             # arrived_vehicles += 해주는 과정 필요
@@ -145,7 +146,7 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
             # arrived_vehicles += 해주는 과정 필요
             
             show_actions(writer, action, epoch, step,act_list)
-            agent.save_replay(state, action, reward, next_state,done, num_agent)
+            agent.save_replay(state, action, reward, next_state, done, num_agent)
             state = next_state
             # print(state)
             total_reward += reward.sum().data
