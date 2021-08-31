@@ -64,7 +64,7 @@ class DDQN():
         if self.mode=='train':
             if random.random() > self.epsilon :  # epsilon greedy
                 with torch.no_grad():
-                    q = self.targetQ(state)
+                    q = self.behaviorQ(state)
                     action = torch.max(q, dim=1)[1]
             else:
                 action = torch.tensor([random.randint(0, self.configs['action_space']-1)], device=self.device)
@@ -76,10 +76,10 @@ class DDQN():
 
     def save_replay(self, state, action, reward, next_state):
         self.experience_replay.push(
-            state.detach().clone(), action.detach().clone(), reward.detach().clone(), next_state.detach().clone())  # 0 index인 이유는 ddpg와 섞이기 때문
+            state, action, reward, next_state)  # 0 index인 이유는 ddpg와 섞이기 때문
 
     def update(self, epoch):
-        if len(self.experience_replay) < self.configs['batch_size']:
+        if len(self.experience_replay) < self.configs['batch_size']*10:
             return 0
         self.targetQ.eval()
         self.behaviorQ.train()

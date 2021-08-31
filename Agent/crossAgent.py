@@ -154,7 +154,7 @@ class DDPGAgent(BaseAgent):
 
 DDQN_AGENT_CONFIGS = {
     'ddqn1': { # direction
-        'fc': [100, 100],
+        'fc': [50, 50],
         'epsilon': 0.5,
         'epsilon_decaying_rate': 0.99,
         'epsilon_final': 0.001,
@@ -171,7 +171,7 @@ DDQN_AGENT_CONFIGS = {
         'gym_mode':False,
     },
     'ddqn2': { # accel
-        'fc': [100, 100],
+        'fc': [50, 50],
         'epsilon': 0.5,
         'epsilon_decaying_rate': 0.99,
         'epsilon_final': 0.001,
@@ -297,21 +297,19 @@ PPO_DDQN_AGENT_CONFIGS = {
         'epsilon': 0.5,
         'epsilon_decaying_rate': 0.99,
         'epsilon_final': 0.001,
-        'experience_replay_size': 1e4,
+        'experience_replay_size': 1e5,
         'batch_size': 32,
         'lr': 1e-2,
         'lr_decaying_epoch': 50,
         'lr_decaying_rate': 0.5,
-        'gamma': 0.999,
+        'gamma': 0.99,
         'action_space': 3,
         'update_type': 'hard',
         'tau':0.05,
-        'target_update_period': 20,
+        'target_update_period': 100,
         'gym_mode':False,
     },
     'ppo': { # accel
-        'experience_replay_size': 1e4,
-        'batch_size': 32,
         'actor':{'lr': 3e-4,
         'lr_decaying_epoch': 50,
         'lr_decaying_rate': 0.5,},
@@ -375,9 +373,13 @@ class PPO_DDQN_Agent(BaseAgent):
         else:
             for s, a, r, n_s,d in zip(state, action, reward, next_state,done):
                 s, a, r, n_s,d = s.view(-1, self.state_size), a.view(-1,
-                                                                   self.action_size), r, n_s.view(-1, self.state_size),d.view(-1,1)
-                self.ddqn1.save_replay(
-                    s, a[:,1], r, n_s)
+                                                                self.action_size), r, n_s.view(-1, self.state_size),d.view(-1,1)
+                if d:
+                    self.ddqn1.save_replay(
+                        s, a[:,1], r, None)
+                else:
+                    self.ddqn1.save_replay(
+                        s, a[:,1], r, n_s)
                 self.ppo.buffer.rewards.append(r)
                 self.ppo.buffer.is_terminals.append(d)
             return
@@ -438,20 +440,20 @@ class PPO_DDQN_Agent(BaseAgent):
 
 
 
-class CrossAgent(DDQNAgent):
-    def __init__(self, file_path, time_data, device, configs):
-        if configs['mode'] != 'load_train':
-            configs['AGENT_CONFIGS'] = DDQN_AGENT_CONFIGS
-        super(CrossAgent, self).__init__(file_path, time_data, device, configs)
+# class CrossAgent(DDQNAgent):
+#     def __init__(self, file_path, time_data, device, configs):
+#         if configs['mode'] != 'load_train':
+#             configs['AGENT_CONFIGS'] = DDQN_AGENT_CONFIGS
+#         super(CrossAgent, self).__init__(file_path, time_data, device, configs)
 # class CrossAgent(DDPGAgent):
 #     def __init__(self, file_path, time_data, device, configs):
 #         if configs['mode'] != 'load_train':
 #             configs['AGENT_CONFIGS'] = AGENT_CONFIGS
 #         super(CrossAgent, self).__init__(file_path, time_data, device, configs)
 
-# class CrossAgent(PPO_DDQN_Agent):
-#     def __init__(self, file_path, time_data, device, configs):
-#         if configs['mode'] != 'load_train':
-#             configs['AGENT_CONFIGS'] = PPO_DDQN_AGENT_CONFIGS
-#         super(CrossAgent, self).__init__(file_path, time_data, device, configs)
+class CrossAgent(PPO_DDQN_Agent):
+    def __init__(self, file_path, time_data, device, configs):
+        if configs['mode'] != 'load_train':
+            configs['AGENT_CONFIGS'] = PPO_DDQN_AGENT_CONFIGS
+        super(CrossAgent, self).__init__(file_path, time_data, device, configs)
 
