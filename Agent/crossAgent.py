@@ -9,13 +9,13 @@ from Agent.Algorithm.ddpg import DDPG
 AGENT_CONFIGS = {
     'ddpg': {
         'actor': {'fc': [50, 50, 50], 'lr': 1e-4, 'lr_decaying_epoch': 50, 'lr_decaying_rate': 0.8, 'tau': 0.02},
-        'critic': {'fc': [50, 50, 50], 'lr': 1e-4, 'lr_decaying_epoch': 50, 'lr_decaying_rate': 0.8, 'tau': 0.02},
-        'experience_replay_size': 1e4,
+        'critic': {'fc': [50, 50, 50], 'lr': 1e-5, 'lr_decaying_epoch': 50, 'lr_decaying_rate': 0.8, 'tau': 0.02},
+        'experience_replay_size': 5e5,
         'batch_size': 32,
         'ou': {'theta': 0.15, 'sigma': 0.2, 'mu': 0.0},
         'gamma': 0.999,
         'action_space': [-1.0, 1.0],
-        'init_train_ddpg':3000,
+        'init_train_ddpg':20000,
         'gym_mode':False,
         'initial_noise_scale':1.0,
         'final_noise_scale':0.01,
@@ -26,7 +26,7 @@ AGENT_CONFIGS = {
         'epsilon': 0.5,
         'epsilon_decaying_rate': 0.99,
         'epsilon_final': 0.001,
-        'experience_replay_size': 1e4,
+        'experience_replay_size': 5e5,
         'batch_size': 32,
         'lr': 1e-4,
         'lr_decaying_epoch': 50,
@@ -137,7 +137,7 @@ class DDPGAgent(BaseAgent):
         writer.add_scalar(
             'ddpg/actor_lr', self.ddpg_model.actor_optim.param_groups[0]['lr'], epoch)
         writer.add_scalar(
-            'ddpg/critic_lr', self.ddpg_model.actor_optim.param_groups[0]['lr'], epoch)
+            'ddpg/critic_lr', self.ddpg_model.critic_optim.param_groups[0]['lr'], epoch)
         writer.add_scalar('dqn/loss',self.dqn_loss/self.max_steps,epoch)
         writer.add_scalar('ddpg/value_loss',self.ddpg_value_loss/self.max_steps,epoch)
         writer.add_scalar('ddpg/policy_loss',self.ddpg_policy_loss/self.max_steps,epoch)
@@ -293,20 +293,20 @@ class DDQNAgent(BaseAgent):
 
 PPO_DDQN_AGENT_CONFIGS = {
     'ddqn1': { # direction
-        'fc': [100, 100],
+        'fc': [50, 50],
         'epsilon': 0.5,
         'epsilon_decaying_rate': 0.99,
         'epsilon_final': 0.001,
-        'experience_replay_size': 1e5,
+        'experience_replay_size': 1e6,
         'batch_size': 32,
-        'lr': 1e-2,
+        'lr': 1e-4,
         'lr_decaying_epoch': 50,
         'lr_decaying_rate': 0.5,
         'gamma': 0.99,
         'action_space': 3,
         'update_type': 'hard',
         'tau':0.05,
-        'target_update_period': 100,
+        'target_update_period': 40,
         'gym_mode':False,
     },
     'ppo': { # accel
@@ -440,20 +440,173 @@ class PPO_DDQN_Agent(BaseAgent):
 
 
 
+PPO_PPO_AGENT_CONFIGS = {
+    'ppo1': { # direction
+        'actor':{'lr': 3e-4,
+        'lr_decaying_epoch': 50,
+        'lr_decaying_rate': 0.5,},
+        'critic':{'lr': 1e-3,
+        'lr_decaying_epoch': 50,
+        'lr_decaying_rate': 0.5,},
+        
+        'gamma': 0.99,
+        'eps_clips':0.2,
+        'k_epochs':10,
+        'action_space': 3,
+        'gym_mode':False,
+    },
+    'ppo': { # accel
+        'actor':{'lr': 3e-4,
+        'lr_decaying_epoch': 50,
+        'lr_decaying_rate': 0.5,},
+        'critic':{'lr': 1e-3,
+        'lr_decaying_epoch': 50,
+        'lr_decaying_rate': 0.5,},
+        
+        'gamma': 0.99,
+        'eps_clips':0.2,
+        'k_epochs':10,
+        'action_space': 1,
+        'gym_mode':False,
+    },
+}
+class PPO_PPO_Agent(BaseAgent):
+    def __init__(self, file_path, time_data, device, configs):
+        super(PPO_PPO_Agent, self).__init__(file_path, time_data, device, configs)
+        self.ppo1 = PPO(
+            self.state_size, 
+            configs['AGENT_CONFIGS']['ppo1']['action_space'],
+            has_continuous_action_space=False,
+            K_epochs=configs['AGENT_CONFIGS']['ppo1']['k_epochs'],
+            eps_clip=configs['AGENT_CONFIGS']['ppo1']['eps_clips'], 
+            device=device, 
+            configs=configs['AGENT_CONFIGS']['ppo1'])
+        self.ppo = PPO(
+            self.state_size, 
+            configs['AGENT_CONFIGS']['ppo']['action_space'],
+            K_epochs=configs['AGENT_CONFIGS']['ppo']['k_epochs'],
+            eps_clip=configs['AGENT_CONFIGS']['ppo']['eps_clips'], 
+            device=device, 
+            configs=configs['AGENT_CONFIGS']['ppo'])
+        self.device=device
+        self.ppo1_loss = 0.0
+        self.ppo_loss = 0.0
+
+    def get_action(self, states, num_agent,done):
+        actions = list()
+        if num_agent!=0:
+            self.ppo1.policy_old.eval()
+            self.ppo.policy_old.eval()
+            for i,state in enumerate(states):
+                if done[i]:
+                    continue
+                # direction
+                ppo_action1 = torch.tensor(self.ppo1.select_action(state.view(1,-1))).to(self.device).view(1,-1)
+                # accel
+                ppo_action = torch.from_numpy(self.ppo.select_action(state.view(1,-1))).to(self.device).view(1,-1)
+                actions.append(torch.cat((ppo_action, ppo_action1), dim=1))
+        if len(actions) != 0:
+            actions = torch.cat(actions, dim=0).detach().clone()
+        return actions
+
+    def update(self, epoch, num_agent):
+        if num_agent == 0:
+            return
+        self.ppo1_loss+=self.ppo1.update()
+        self.ppo_loss+=self.ppo.update()
+
+    def save_replay(self, state, action, reward, next_state, done,num_agent):
+        if type(action) == list or num_agent==0:
+            return
+        else:
+            for s, a, r, n_s,d in zip(state, action, reward, next_state,done):
+                s, a, r, n_s,d = s.view(-1, self.state_size), a.view(-1,
+                                                                self.action_size), r, n_s.view(-1, self.state_size),d.view(-1,1)
+                self.ppo.buffer.rewards.append(r)
+                self.ppo1.buffer.rewards.append(r)
+                self.ppo.buffer.is_terminals.append(d)
+                self.ppo1.buffer.is_terminals.append(d)
+            return
+
+    def hyperparams_update(self):
+        self.ppo.hyperparams_update()
+        self.ppo.buffer.states=[]
+        self.ppo.buffer.rewards=[]
+        self.ppo.buffer.actions=[]
+        self.ppo.buffer.logprobs=[]
+        self.ppo.buffer.is_terminals=[]
+        self.ppo1.hyperparams_update()
+        self.ppo1.buffer.states=[]
+        self.ppo1.buffer.rewards=[]
+        self.ppo1.buffer.actions=[]
+        self.ppo1.buffer.logprobs=[]
+        self.ppo1.buffer.is_terminals=[]
+
+    def save_weight(self, epoch,best_reward,total_reward):
+        self.ppo1.optimizer.zero_grad()
+        self.ppo.optimizer.zero_grad()
+        if epoch!=0 and best_reward<total_reward:
+            torch.save(self.ppo1.policy.state_dict(), os.path.join(
+                self.file_path, 'training_data', self.time_data, 'ppo1_policy.pt'))
+            torch.save(self.ppo1.policy_old.state_dict(), os.path.join(
+                self.file_path, 'training_data', self.time_data, 'ppo1_old_policy.pt'))
+            torch.save(self.ppo.policy.state_dict(), os.path.join(
+                self.file_path, 'training_data', self.time_data, 'ppo_policy.pt'))
+            torch.save(self.ppo.policy_old.state_dict(), os.path.join(
+                self.file_path, 'training_data', self.time_data, 'ppo_old_policy.pt'))
+            print("Model Save")
+
+    def load_weight(self, time_data):
+        self.ppo1.policy.load_state_dict(torch.load(
+            os.path.join(self.file_path, 'training_data', time_data, 'ppo1_policy.pt')))
+        self.ppo1.policy_old.load_state_dict(torch.load(
+            os.path.join(self.file_path, 'training_data', time_data, 'ppo1_old_policy.pt')))
+        self.ppo.policy.load_state_dict(torch.load(
+            os.path.join(self.file_path, 'training_data', time_data, 'ppo_policy.pt')))
+        self.ppo.policy_old.load_state_dict(torch.load(
+            os.path.join(self.file_path, 'training_data', time_data, 'ppo_old_policy.pt')))
+        print("load weight complete")
+
+    def update_tensorboard(self, writer, epoch):
+        writer.add_scalar(
+            'ppo1/lr', self.ppo1.optimizer.param_groups[0]['lr'], epoch)
+        writer.add_scalar('ppo1/loss',self.ppo1_loss/self.max_steps,epoch)
+        writer.add_scalar(
+            'ppo/lr', self.ppo.optimizer.param_groups[0]['lr'], epoch)
+        writer.add_scalar('ppo/loss',self.ppo_loss/self.max_steps,epoch)
+        print("ppo1 LOSS:{:.4e} ppo LOSS:{:.4e}".format(self.ppo1_loss/self.max_steps,self.ppo_loss/self.max_steps))
+        self.ppo1_loss = 0.0
+        self.ppo_loss = 0.0
+        
+    def target_update(self,epoch):
+        pass
+
+    def eval(self):
+        self.ppo1.policy_old.eval()
+        self.ppo.policy_old.eval()
+
+
 # class CrossAgent(DDQNAgent):
 #     def __init__(self, file_path, time_data, device, configs):
 #         if configs['mode'] != 'load_train':
 #             configs['AGENT_CONFIGS'] = DDQN_AGENT_CONFIGS
 #         super(CrossAgent, self).__init__(file_path, time_data, device, configs)
-# class CrossAgent(DDPGAgent):
-#     def __init__(self, file_path, time_data, device, configs):
-#         if configs['mode'] != 'load_train':
-#             configs['AGENT_CONFIGS'] = AGENT_CONFIGS
-#         super(CrossAgent, self).__init__(file_path, time_data, device, configs)
-
-class CrossAgent(PPO_DDQN_Agent):
+class CrossAgent(DDPGAgent):
     def __init__(self, file_path, time_data, device, configs):
         if configs['mode'] != 'load_train':
-            configs['AGENT_CONFIGS'] = PPO_DDQN_AGENT_CONFIGS
+            configs['AGENT_CONFIGS'] = AGENT_CONFIGS
         super(CrossAgent, self).__init__(file_path, time_data, device, configs)
+#         super(CrossAgent, self).__init__(file_path, time_data, device, configs)
 
+# class CrossAgent(PPO_DDQN_Agent):
+#     def __init__(self, file_path, time_data, device, configs):
+#         if configs['mode'] != 'load_train':
+#             configs['AGENT_CONFIGS'] = PPO_DDQN_AGENT_CONFIGS
+#         super(CrossAgent, self).__init__(file_path, time_data, device, configs)
+
+
+class CrossAgent(PPO_PPO_Agent):
+    def __init__(self, file_path, time_data, device, configs):
+        if configs['mode'] != 'load_train':
+            configs['AGENT_CONFIGS'] = PPO_PPO_AGENT_CONFIGS
+        super(CrossAgent, self).__init__(file_path, time_data, device, configs)

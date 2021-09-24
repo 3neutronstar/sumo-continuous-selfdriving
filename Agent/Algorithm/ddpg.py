@@ -6,6 +6,12 @@ from Agent.Algorithm.utils import ReplayMemory
 from Agent.Algorithm.random_process import OrnsteinUhlenbeckProcess
 from Agent.Algorithm.utils import hard_update, soft_update
 from collections import namedtuple
+import numpy as np
+
+def fanin_init(size, fanin=None):
+    fanin = fanin or size[0]
+    v = 1. / np.sqrt(fanin)
+    return torch.Tensor(size).uniform_(-v, v)
 
 class Actor(nn.Module):
     def __init__(self, input_size, output_size, configs):
@@ -14,11 +20,13 @@ class Actor(nn.Module):
         self.input_size = input_size
         self.output_size = output_size
         self.fc = self._make_layers()
+        self.init_weights(3e-3)
 
 
     def forward(self, input):
         x = input
         x = self.fc(x)
+        x = F.tanh(x)
         return x
 
     def _make_layers(self):
@@ -33,6 +41,16 @@ class Actor(nn.Module):
                        nn.ReLU(inplace=True)]
         return nn.Sequential(*layers)
 
+    def init_weights(self, init_w):
+        num_fc=0
+        for fc in self.fc:
+            if isinstance(fc,nn.Linear):
+                num_fc+=1
+                if num_fc ==(len(self.configs['fc'])):
+                    fc.weight.data=fanin_init(fc.weight.data.size())
+                else:
+                    fc.weight.data.uniform_(-init_w, init_w)
+            
 class Critic(nn.Module):
     def __init__(self, input_size, output_size, configs):
         super(Critic, self).__init__()
@@ -40,11 +58,22 @@ class Critic(nn.Module):
         self.input_size = input_size
         self.output_size = output_size
         self.fc = self._make_layers()
+        self.init_weights(3e-3)
 
     def forward(self, input, actions):
         x = torch.cat((input, actions), dim=1)
         x = self.fc(x)
         return x
+
+    def init_weights(self, init_w):
+        num_fc=0
+        for fc in self.fc:
+            if isinstance(fc,nn.Linear):
+                num_fc+=1
+                if num_fc ==(len(self.configs['fc'])):
+                    fc.weight.data=fanin_init(fc.weight.data.size())
+                else:
+                    fc.weight.data.uniform_(-init_w, init_w)
 
     def _make_layers(self):
         layers = []

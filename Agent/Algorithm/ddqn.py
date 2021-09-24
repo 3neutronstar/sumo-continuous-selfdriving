@@ -58,8 +58,6 @@ class DDQN():
         self.epsilon_decaying_rate = configs['epsilon_decaying_rate']
         self.final_epsilon = configs['epsilon_final']
 
-        self.running_loss = 0
-
     def get_action(self, state):
         if self.mode=='train':
             if random.random() > self.epsilon :  # epsilon greedy
@@ -118,8 +116,6 @@ class DDQN():
         loss = self.criterion(state_action_values,
                               expected_state_action_values.unsqueeze(1))
 
-
-        self.running_loss += loss.item()
 
         self.optimizer.zero_grad()
         # 모델 최적화

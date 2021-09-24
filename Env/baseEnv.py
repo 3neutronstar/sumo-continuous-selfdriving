@@ -27,7 +27,7 @@ import traci
 import os
 from xml.etree.ElementTree import parse
 ENV_CONFIGS = {
-    'state_space': 15,# 9+5+1, target velocity
+    'state_space': 16,# 9+5+1+1, target velocity
     'gen_agent_list': ['agent_{}'.format(i) for i in range(70)],
     'route_list':['route_{}'.format(i) for i in range(3)],
     'action_size': 2
@@ -58,6 +58,9 @@ class Env():
         self.agent_route_dict = dict()
         self.popup_action=None # action의 agent별 update 변화를 감당하는 action
         self.num_lane,self.num_edge = self.get_edge_from_edg_xml()
+
+        self.cum_lanechange_num=dict()
+        self.last_edge=dict()
         
 
     def init(self):
@@ -166,6 +169,8 @@ class Env():
             else:
                 raise NotImplementedError
             self.agent_list.append(self.gen_agent_list[self.vehicle_gen_idx])
+            self.last_edge[self.gen_agent_list[self.vehicle_gen_idx]]='L_to_C'
+            self.cum_lanechange_num[self.gen_agent_list[self.vehicle_gen_idx]]=0
             self.num_agent += 1
             
             self.agent_route_dict[self.gen_agent_list[self.vehicle_gen_idx]] = self.route_list[0]
@@ -226,11 +231,11 @@ class Env():
                 continue
             # speed = traci.vehicle.getSpeed(agent)
             # pos_reward[idx] = max(speed, 0.0)
-            target_velocity=self.get_desired_velocity(agent)
+            target_velocity=self.getDesiredVelocity(agent)
             pos_reward[idx]=self._calc_desired_velocity_reward(agent,target_velocity)
         return pos_reward
     
-    def get_desired_velocity(self,agent):
+    def getDesiredVelocity(self,agent):
         # 신호를 받고
         cur_edge = self.get_cur_edge(agent)
         next_node = 'n_' + cur_edge.split('_to_')[1]
@@ -283,9 +288,16 @@ class Env():
                 if idx in removed_agent_idx:
                     continue
                 lanechange_action=action[1]
+                cur_edge=self.get_cur_edge(self.agent_list[idx])
+                if self.last_edge[self.agent_list[idx]]!=cur_edge:#다른 edge로 가면 초기화
+                    self.cum_lanechange_num[self.agent_list[idx]]=0
+                self.last_edge[self.agent_list[idx]]=cur_edge
                 if lanechange_action!=1:
-                    neg_reward[idx]+=1
-
+                    smooth_val=5
+                    self.cum_lanechange_num[self.agent_list[idx]]+=1
+                    maxLanechange=self.getMaxLanechange(self.agent_list[idx])
+                    relu=self.cum_lanechange_num[self.agent_list[idx]]-maxLanechange
+                    neg_reward[idx]+= 0.5*np.tanh(relu/smooth_val) if relu>0 else 0
         #related to teleport penalty
         teleport_list=traci.simulation.getStartingTeleportIDList()
         for tp_veh in teleport_list:
@@ -334,10 +346,17 @@ class Env():
             self.getDirection,  #direction of agent
             self.getRestDistance, # get the current position of total distance
             self.getTrafficLight, #traffic light status of current edge '''removed due to change of format of return'''
-            self.get_desired_velocity,
+            self.getDesiredVelocity,
+            self.getLanechangeNum,
         ]
         return observ_list
     
+    def getLanechangeNum(self,agent):
+        eps=1e-7
+        maxLanechange=self.getMaxLanechange(agent)
+        lanechangeRate=max(maxLanechange-self.cum_lanechange_num[agent],0)/(maxLanechange+eps)
+        return lanechangeRate
+
     def getRestDistance(self,agent):
         lane_id=traci.vehicle.getLaneID(agent)
         if len(str(lane_id))>0:
@@ -398,6 +417,13 @@ class Env():
         route_idx=max(route_idx,-1)
         route_idx=min(route_idx,self.num_edge)
         return route_idx
+
+    def getMaxLanechange(self,agent):
+        lane_id=traci.vehicle.getLaneID(agent)
+        if len(lane_id)==0:
+            return 5
+        lane_length=traci.lane.getLength(lane_id)
+        return lane_length//100+1
 
     # direction은 [current edge]-[surrounding edge]-[probability]의 순으로 구성된 중첩 dictionary
     # junction_edges는 map의 모든 junction에 대해 [junction(node)_id]-[surrounding edge]의 순으로 구성된 dictionary
@@ -546,3 +572,4 @@ class Env():
         num_edge = len(edges)-1 #edge index는 0부터 시작됨
 
         return num_edge, num_lane
+    

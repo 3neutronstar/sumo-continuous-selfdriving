@@ -203,7 +203,7 @@ class PPO:
 
 
     def update(self):
-        if len(self.buffer.actions)<100:
+        if len(self.buffer.actions)<200:
             return 0
         # Monte Carlo estimate of returns
         rewards = []

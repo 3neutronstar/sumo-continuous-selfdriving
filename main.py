@@ -32,7 +32,7 @@ def parse_args(args):
     # display the monitor
     parser.add_argument('--disp', type=bool, default=False)
     parser.add_argument('--gpu', type=bool, default=False)
-    parser.add_argument('--start_epoch', type=int, default=0)
+    parser.add_argument('--start_epoch', type=int, default=1)
     parser.add_argument('--epochs', type=int, default=1000)
     parser.add_argument('--seed', type=int, default=1)
     # replay_option (test,load_train)
@@ -130,7 +130,7 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         agent.load_weight(file_path, time_data)
     best_reward=0.0
 
-    for epoch in range(configs['EXP_CONFIGS']['start_epoch'], configs['EXP_CONFIGS']['epochs']):
+    for epoch in range(configs['EXP_CONFIGS']['start_epoch'], configs['EXP_CONFIGS']['epochs']+1):
         traci.start(sumoCmd)
         step = 0.0
         env = Env(file_path, device, configs)
@@ -162,11 +162,10 @@ def train(time_data, device, configs, sumoBinary, sumoConfig):
         update_tensorBoard(writer, agent, env, epoch, configs,act_list)
         agent.save_weight(epoch,best_reward,total_reward)
         best_reward=max(best_reward,total_reward)
-        epoch += 1
-                
         print("Epoch: {:4d}, Time:{:.3f}, Reward: {:.3f}".format(epoch, tok-tik, total_reward))
         print('avg speed: ',eval_get_avg_speed(speed_state))
         print('='*30)
+
     writer.close()
 
 
